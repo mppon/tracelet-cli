@@ -92,6 +92,24 @@ Agent 运行期间，CLI 会输出本地 Dashboard 地址。Agent 退出后代�
 tracelet dashboard
 ```
 
+清除全部已记录的运行和会话信息。Tracelet 会在删除前要求确认：
+
+```bash
+tracelet clear
+```
+
+脚本等场景可以使用 `--yes` 跳过确认：
+
+```bash
+tracelet clear --yes
+```
+
+该命令只删除解析后数据目录中的 `runs/`，并重新创建空目录。清理自定义数据目录时，需要将公共参数放在子命令之前：
+
+```bash
+tracelet --data-dir ./trace-data clear --yes
+```
+
 ## CLI 参数
 
 公共参数需要放在子命令之前：
@@ -238,7 +256,7 @@ pnpm build
 
 ## 当前限制
 
-- 尚未提供记录删除、保留期限和容量清理命令。
+- 尚未提供按保留期限和容量自动清理的能力。
 - Dashboard 查询会扫描本地文件；数据量很大后可增加 SQLite 索引，原始 `.bin` 和 JSONL 仍可继续保留。
 - OpenAI Response Chain 尚不能跨 Tracelet 进程恢复。
 - 只支持通过 Base URL 配置接入的 HTTP/HTTPS 请求。

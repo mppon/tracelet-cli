@@ -92,6 +92,24 @@ Start a standalone Dashboard for existing records:
 tracelet dashboard
 ```
 
+Clear all recorded runs and sessions. Tracelet asks for confirmation before deleting them:
+
+```bash
+tracelet clear
+```
+
+Use `--yes` to skip the confirmation, for example in a script:
+
+```bash
+tracelet clear --yes
+```
+
+The command only removes the resolved data directory's `runs/` folder and recreates it empty. To clear a custom data directory, place the shared option before the subcommand:
+
+```bash
+tracelet --data-dir ./trace-data clear --yes
+```
+
 ## CLI options
 
 Place shared options before the subcommand:
@@ -236,7 +254,7 @@ pnpm build
 
 ## Current limitations
 
-- Record deletion, retention policies, and storage cleanup commands are not implemented yet.
+- Retention policies and capacity-based cleanup are not implemented yet.
 - Dashboard queries scan local files. A SQLite index can be added for large datasets while retaining raw `.bin` and JSONL files.
 - OpenAI Response Chains cannot yet be restored across Tracelet processes.
 - Only HTTP/HTTPS traffic routed through a configurable Base URL is supported.

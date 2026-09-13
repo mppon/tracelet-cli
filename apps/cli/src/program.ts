@@ -1,9 +1,11 @@
 /** 本文件负责定义 Commander 命令和无参数时的交互菜单。 */
 
-import { select } from "@inquirer/prompts";
+import { confirm, select } from "@inquirer/prompts";
 import type { AgentType } from "@tracelet/shared";
 import { Command, Option } from "commander";
 import { agents } from "./agents.js";
+import { clearData } from "./clear.js";
+import { dataDir } from "./paths.js";
 import { runAgent, runDashboard, type RunOptions } from "./run.js";
 
 /** 将端口字符串转换为合法整数。 */
@@ -52,6 +54,29 @@ async function interactive(program: Command): Promise<void> {
   process.exitCode = await runAgent(agent, [], getOptions(program));
 }
 
+/** 确认后清除当前数据目录中的全部历史记录。 */
+async function clearRecords(program: Command, yes: boolean): Promise<void> {
+  const root = dataDir(getOptions(program).dataDir);
+
+  if (!yes) {
+    if (!process.stdin.isTTY) {
+      throw new Error("非交互环境请使用 tracelet clear --yes。");
+    }
+
+    const accepted = await confirm({
+      message: `将永久删除 ${root} 中的全部 Tracelet 记录，是否继续？`,
+      default: false,
+    });
+    if (!accepted) {
+      console.log("已取消清理。");
+      return;
+    }
+  }
+
+  await clearData(root);
+  console.log(`已清除全部 Tracelet 记录：${root}`);
+}
+
 /** 创建并配置 Tracelet Commander 程序。 */
 export function createProgram(): Command {
   const program = new Command();
@@ -79,6 +104,17 @@ export function createProgram(): Command {
     .command("dashboard")
     .description("查看本地 Tracelet 历史记录")
     .action(() => runDashboard(getOptions(program)));
+
+  const clear = program
+    .command("clear")
+    .description("清除全部本地 Tracelet 历史记录")
+    .option("-y, --yes", "跳过确认");
+
+  /** 读取 clear 子命令参数并执行清理。 */
+  clear.action(async () => {
+    const options = clear.opts<{ yes?: boolean }>();
+    await clearRecords(program, options.yes === true);
+  });
 
   return program;
 }
