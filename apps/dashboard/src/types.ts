@@ -47,6 +47,7 @@ export interface ExchangeDetail {
     sessionSource: string;
     requestHeaders: Record<string, string | string[]>;
     responseHeaders?: Record<string, string | string[]>;
+    responseStatus?: number;
     requestBytes: number;
     responseBytes: number;
     firstByteAt?: string;

@@ -2,11 +2,25 @@
 
 import type { ExchangeDetail, SessionSummary } from "./types";
 
+export type ApiKind = "sessions" | "exchange";
+
+export class ApiError extends Error {
+  readonly kind: ApiKind;
+  readonly status: number;
+
+  /** 创建供界面按当前语言展示的结构化 API 错误。 */
+  constructor(kind: ApiKind, status: number) {
+    super(`${kind}:${status}`);
+    this.kind = kind;
+    this.status = status;
+  }
+}
+
 /** 读取全部会话及其请求摘要。 */
 export async function fetchSessions(): Promise<SessionSummary[]> {
   const response = await fetch("/api/sessions");
   if (!response.ok) {
-    throw new Error(`加载会话失败：${response.status}`);
+    throw new ApiError("sessions", response.status);
   }
   const body = (await response.json()) as { sessions?: SessionSummary[] };
   return body?.sessions ?? [];
@@ -16,7 +30,7 @@ export async function fetchSessions(): Promise<SessionSummary[]> {
 export async function fetchExchange(id: string): Promise<ExchangeDetail> {
   const response = await fetch(`/api/exchanges/${encodeURIComponent(id)}`);
   if (!response.ok) {
-    throw new Error(`加载请求失败：${response.status}`);
+    throw new ApiError("exchange", response.status);
   }
   return (await response.json()) as ExchangeDetail;
 }

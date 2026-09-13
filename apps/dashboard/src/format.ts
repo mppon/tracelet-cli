@@ -1,19 +1,30 @@
 /** 本文件负责格式化 Dashboard 展示的时间、字节和 JSON。 */
 
-/** 将 ISO 时间转换为本地可读时间。 */
-export function formatTime(value?: string): string {
-  return value ? new Date(value).toLocaleString() : "—";
+import type { Locale } from "./i18n";
+
+/** 将 ISO 时间转换为当前界面的本地时间。 */
+export function formatTime(value: string | undefined, locale: Locale): string {
+  if (!value) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat(locale, {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
 }
 
-/** 将字节数转换为紧凑单位。 */
-export function formatBytes(value: number): string {
+/** 将字节数转换为符合当前语言格式的紧凑单位。 */
+export function formatBytes(value: number, locale: Locale): string {
   if (value < 1024) {
-    return `${value} B`;
+    return `${new Intl.NumberFormat(locale).format(value)} B`;
   }
   if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`;
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value / 1024)} KB`;
   }
-  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value / 1024 / 1024)} MB`;
 }
 
 /** 将任意数据格式化为可阅读 JSON。 */
