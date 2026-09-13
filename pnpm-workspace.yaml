@@ -1,0 +1,10 @@
+# 本文件声明 Tracelet 的 pnpm 工作区范围。
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# esbuild 是 Vite、Vitest 和 tsup 的必要本地构建依赖。
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: false

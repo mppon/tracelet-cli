@@ -1,0 +1,7 @@
+# 本文件声明 Tracelet 不应进入版本控制的本地生成内容。
+node_modules/
+dist/
+.tracelet/
+coverage/
+*.log
+.DS_Store

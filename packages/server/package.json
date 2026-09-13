@@ -1,0 +1,16 @@
+{
+  "name": "@tracelet/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tracelet/proxy": "workspace:*",
+    "@tracelet/recorder": "workspace:*",
+    "@tracelet/shared": "workspace:*",
+    "@tracelet/storage": "workspace:*"
+  }
+}

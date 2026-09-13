@@ -1,0 +1,22 @@
+{
+  "name": "tracelet-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tracelet 本地 LLM 请求记录工具工作区",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "build": "pnpm --filter @tracelet/dashboard build && pnpm --filter @tracelet/cli build && node scripts/copy-dashboard.mjs",
+    "dev": "pnpm --filter @tracelet/dashboard build && pnpm --filter @tracelet/cli dev",
+    "test": "vitest run",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

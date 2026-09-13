@@ -1,0 +1,15 @@
+{
+  "name": "@tracelet/protocols",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
+    "@tracelet/shared": "workspace:*",
+    "openai": "^7.15.0"
+  }
+}
