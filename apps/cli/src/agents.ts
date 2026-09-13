@@ -53,7 +53,7 @@ async function hasBin(command: string): Promise<boolean> {
 async function usesChatGpt(): Promise<boolean> {
   try {
     const result = await exec("codex", ["login", "status"]);
-    return result.stdout.includes("ChatGPT");
+    return result.stderr.includes("ChatGPT");
   } catch {
     return false;
   }
