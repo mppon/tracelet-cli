@@ -1,7 +1,7 @@
 /** 本文件验证 Codex zstd HTTP 请求的透明转发和历史记录恢复。 */
 
 import http, { type Server } from "node:http";
-import { mkdtemp, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TraceletServer } from "@tracelet/server";
@@ -70,6 +70,12 @@ describe("Codex HTTP", () => {
       },
     ];
     const upstream = http.createServer((req, res) => {
+      if (req.url?.startsWith("/models")) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "gpt-test" }] }));
+        return;
+      }
+
       req.on("data", (chunk: Buffer) => received.push(chunk));
       req.once("end", () => {
         res.writeHead(200, { "content-type": "text/event-stream" });
@@ -88,6 +94,9 @@ describe("Codex HTTP", () => {
     };
     const proxyUrl = await tracelet.addRun(run, "openai", upstreamUrl);
 
+    const models = await fetch(`${proxyUrl}/models?client_version=0.1.0`);
+    await models.text();
+
     const result = await fetch(`${proxyUrl}/responses`, {
       method: "POST",
       headers: {
@@ -103,6 +112,7 @@ describe("Codex HTTP", () => {
 
     expect(Buffer.concat(received)).toEqual(compressed);
     const sessions = await listSessions(root);
+    expect(sessions).toHaveLength(1);
     expect(sessions[0]?.id).toBe("codex:session-http");
     const exchange = sessions[0]?.exchanges[0];
     const detail = await getExchange(root, exchange?.id ?? "");
@@ -118,6 +128,8 @@ describe("Codex HTTP", () => {
       "exchanges",
       exchange?.id ?? "",
     );
+    const storedExchanges = await readdir(join(exchangeDir, ".."));
+    expect(storedExchanges).toHaveLength(2);
     const reconstructed = join(exchangeDir, "reconstructed.json");
     await unlink(reconstructed);
     const metaPath = join(exchangeDir, "meta.json");

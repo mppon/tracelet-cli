@@ -19,6 +19,13 @@ interface StoredMeta {
   meta: ExchangeMeta;
 }
 
+/** 判断一次记录是否属于 Dashboard 需要展示的模型交互。 */
+function isVisible(meta: ExchangeMeta): boolean {
+  const path = meta.path.split("?", 1)[0];
+  // 模型列表属于 Codex 启动元数据，不计入用户会话。
+  return !(meta.protocol === "openai" && meta.method === "GET" && path?.endsWith("/models"));
+}
+
 /** 使用 Codex 请求 Header 修正旧记录中的会话归属。 */
 function normalizeMeta(meta: ExchangeMeta): ExchangeMeta {
   if (meta.protocol !== "openai" || meta.sessionSource !== "run") {
@@ -94,6 +101,10 @@ export async function listSessions(root: string): Promise<SessionSummary[]> {
   const groups = new Map<string, SessionSummary>();
 
   for (const item of await scan(root)) {
+    if (!isVisible(item.meta)) {
+      continue;
+    }
+
     const current = groups.get(item.meta.sessionId);
     if (current) {
       current.exchanges.push(toSummary(item.meta));

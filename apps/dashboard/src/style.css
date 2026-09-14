@@ -528,6 +528,8 @@ summary:focus-visible {
   display: flex;
   gap: 24px;
   overflow-x: auto;
+  /* 激活标签的底部高亮线不应触发纵向滚动。 */
+  overflow-y: hidden;
   border-bottom: 1px solid var(--border);
 }
 
