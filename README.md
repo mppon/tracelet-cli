@@ -24,7 +24,7 @@ Tracelet does not modify request bodies. The proxy only forwards traffic, remove
   - Anthropic: `MessageStream.fromReadableStream(...).finalMessage()`
   - OpenAI: `ResponseStream.fromReadableStream(...).finalResponse()`
 - Session grouping through Claude Session Headers, OpenAI Conversations, and Response Chains.
-- Local Dashboard with Complete Request, Complete Response, and SSE Chunks tabs.
+- Local Dashboard with Complete Request, Complete Response, and SSE Events tabs.
 - Chinese and English Dashboard UI with browser detection and persistent language selection.
 - Automatic redaction of Authorization, API Key, and Cookie headers before persistence.
 - Raw binary and JSONL storage with no database dependency.
@@ -211,7 +211,7 @@ The Dashboard provides:
 - Complete Request: the full request decoded and parsed from `request.bin`, shown as a collapsible JSON tree.
 - Complete Response: the response object reconstructed by the official SDK, shown as a collapsible JSON tree.
 - JSON controls: expand all, expand two levels, collapse nodes, and copy the complete JSON.
-- SSE Chunks: HTTP chunk arrival order, timing, length, offset, text, and Base64.
+- SSE Events: parsed event type, timing, source chunk range, formatted data, and raw event text.
 
 If a stream is interrupted or the SDK cannot reconstruct the response, the Dashboard reports the reconstruction error while retaining the raw response and chunk records.
 

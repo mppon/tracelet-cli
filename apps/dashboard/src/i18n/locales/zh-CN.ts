@@ -42,13 +42,13 @@ export const zhCN: Messages = {
       overview: "概览",
       request: "完整请求",
       response: "完整响应",
-      chunks: "SSE Chunks",
+      events: "SSE 事件",
     },
     metrics: {
       duration: "总耗时",
       request: "请求大小",
       response: "响应大小",
-      chunks: "Chunk 数",
+      events: "SSE 事件数",
     },
     fields: {
       request: "请求信息",
@@ -67,7 +67,8 @@ export const zhCN: Messages = {
       run: "当前运行",
     },
     reconstructError: "官方 SDK 未能还原完整响应",
-    selectChunk: "选择一个 chunk 查看原始内容。",
-    offset: "偏移",
+    selectEvent: "选择一个 SSE 事件查看完整内容。",
+    chunkRange: "来源 Chunk",
+    rawEvent: "原始 SSE 事件",
   },
 };

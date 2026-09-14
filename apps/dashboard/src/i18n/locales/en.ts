@@ -42,13 +42,13 @@ export const en: Messages = {
       overview: "Overview",
       request: "Complete Request",
       response: "Complete Response",
-      chunks: "SSE Chunks",
+      events: "SSE Events",
     },
     metrics: {
       duration: "Duration",
       request: "Request",
       response: "Response",
-      chunks: "Chunks",
+      events: "SSE events",
     },
     fields: {
       request: "Request information",
@@ -67,7 +67,8 @@ export const en: Messages = {
       run: "Current run",
     },
     reconstructError: "The official SDK could not reconstruct the complete response",
-    selectChunk: "Select a chunk to inspect its raw content.",
-    offset: "Offset",
+    selectEvent: "Select an SSE event to inspect its complete content.",
+    chunkRange: "Source chunks",
+    rawEvent: "Raw SSE event",
   },
 };

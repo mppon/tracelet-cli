@@ -879,6 +879,21 @@ summary:focus-visible {
   color: var(--text);
 }
 
+.event-row {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.event-row > span:last-child {
+  grid-column: 2;
+}
+
+.event-name {
+  overflow: hidden;
+  color: var(--text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chunk-detail {
   min-width: 0;
 }
@@ -891,6 +906,14 @@ summary:focus-visible {
   color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
+}
+
+.event-type {
+  color: var(--accent);
+}
+
+.event-detail .json-scroll {
+  max-height: calc(100vh - 430px);
 }
 
 .chunk-detail .code {

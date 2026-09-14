@@ -1,19 +1,19 @@
-/** 本文件负责展示请求指标、完整对象和 SSE chunk 内容。 */
+/** 本文件负责展示请求指标、完整对象和 SSE 事件。 */
 
 import { useMemo, useState } from "react";
 import { formatBytes, formatJson, formatTime } from "./format";
 import { useI18n, type Locale, type Messages } from "./i18n";
 import { JsonViewer } from "./JsonViewer";
-import type { ChunkView, ExchangeDetail } from "./types";
+import type { ExchangeDetail, SseEvent } from "./types";
 
-type Tab = "overview" | "request" | "response" | "chunks";
+type Tab = "overview" | "request" | "response" | "events";
 
 interface DetailProps {
   detail: ExchangeDetail | undefined;
   loading: boolean;
 }
 
-const tabs: Tab[] = ["overview", "request", "response", "chunks"];
+const tabs: Tab[] = ["overview", "request", "response", "events"];
 
 /** 计算并格式化请求持续时间。 */
 function duration(detail: ExchangeDetail, locale: Locale): string {
@@ -59,6 +59,15 @@ function CodeBlock({ label, value }: { label: string; value: unknown }) {
   );
 }
 
+/** 将 SSE data 转为适合 JSON Viewer 展示的数据。 */
+function eventData(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
 /** 展示单个请求指标。 */
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -77,7 +86,7 @@ function Metrics({ detail }: { detail: ExchangeDetail }) {
       <Metric label={messages.detail.metrics.duration} value={duration(detail, locale)} />
       <Metric label={messages.detail.metrics.request} value={formatBytes(detail.meta.requestBytes, locale)} />
       <Metric label={messages.detail.metrics.response} value={formatBytes(detail.meta.responseBytes, locale)} />
-      <Metric label={messages.detail.metrics.chunks} value={String(detail.chunks.length)} />
+      <Metric label={messages.detail.metrics.events} value={String(detail.events?.length ?? 0)} />
     </div>
   );
 }
@@ -110,56 +119,60 @@ function Overview({ detail }: { detail: ExchangeDetail }) {
   );
 }
 
-/** 展示单个原始响应 chunk。 */
-function ChunkDetail({ chunk }: { chunk: ChunkView | undefined }) {
+/** 展示单个完整 SSE 事件及其来源 chunk 范围。 */
+function EventDetail({ event }: { event: SseEvent | undefined }) {
   const { locale, messages } = useI18n();
-  if (!chunk) {
-    return <div className="chunk-empty">{messages.detail.selectChunk}</div>;
+  if (!event) {
+    return <div className="chunk-empty">{messages.detail.selectEvent}</div>;
   }
 
+  const range = event.firstChunk === event.lastChunk
+    ? `#${event.firstChunk}`
+    : `#${event.firstChunk}–#${event.lastChunk}`;
+
   return (
-    <div className="chunk-detail">
+    <div className="chunk-detail event-detail">
       <div className="chunk-meta">
-        <span>#{chunk.seq}</span>
-        <span>+{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(chunk.tUs / 1000)} ms</span>
-        <span>{formatBytes(chunk.length, locale)}</span>
-        <span>{messages.detail.offset} {chunk.offset}</span>
+        <span>#{event.seq}</span>
+        <strong className="event-type">{event.event}</strong>
+        <span>+{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(event.tUs / 1000)} ms</span>
+        <span>{messages.detail.chunkRange} {range}</span>
       </div>
-      <CodeBlock label={`Chunk #${chunk.seq}`} value={chunk.text} />
+      <JsonViewer label={event.event} value={eventData(event.data)} />
       <details>
-        <summary>Base64</summary>
-        <CodeBlock label="Base64" value={chunk.base64} />
+        <summary>{messages.detail.rawEvent}</summary>
+        <CodeBlock label={messages.detail.rawEvent} value={event.raw} />
       </details>
     </div>
   );
 }
 
-/** 展示 chunk 到达顺序，并允许查看每块原始字节。 */
-function Chunks({ detail }: { detail: ExchangeDetail }) {
+/** 按 SSE 协议事件边界展示解析后的完整事件。 */
+function Events({ detail }: { detail: ExchangeDetail }) {
   const { locale } = useI18n();
-  const [selected, setSelected] = useState(detail.chunks.at(0)?.seq);
-  const chunk = useMemo(
-    () => detail.chunks.find((item) => item.seq === selected),
-    [detail.chunks, selected],
+  const [selected, setSelected] = useState(detail.events?.at(0)?.seq);
+  const event = useMemo(
+    () => detail.events?.find((item) => item.seq === selected),
+    [detail.events, selected],
   );
 
   return (
     <div className="chunks-layout">
       <div className="chunk-list">
-        {detail.chunks.map((item) => (
+        {detail.events?.map((item) => (
           <button
-            className={item.seq === selected ? "chunk-row active" : "chunk-row"}
+            className={item.seq === selected ? "chunk-row event-row active" : "chunk-row event-row"}
             key={item.seq}
             type="button"
             onClick={() => setSelected(item.seq)}
           >
             <strong>#{item.seq}</strong>
+            <span className="event-name" title={item.event}>{item.event}</span>
             <span>+{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.tUs / 1000)} ms</span>
-            <span>{formatBytes(item.length, locale)}</span>
           </button>
         ))}
       </div>
-      <ChunkDetail chunk={chunk} />
+      <EventDetail event={event} />
     </div>
   );
 }
@@ -176,8 +189,8 @@ function TabContent({ tab, detail }: { tab: Tab; detail: ExchangeDetail }) {
   if (tab === "response") {
     return <JsonViewer label={messages.detail.tabs.response} value={detail.response} />;
   }
-  // 切换 exchange 时重建局部状态，避免沿用上一条记录的 chunk 序号。
-  return <Chunks key={detail.meta.id} detail={detail} />;
+  // 切换 exchange 时重建局部状态，避免沿用上一条记录的事件序号。
+  return <Events key={detail.meta.id} detail={detail} />;
 }
 
 /** 展示当前选中 exchange 的所有详情标签。 */

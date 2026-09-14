@@ -42,13 +42,13 @@ export interface Messages {
       overview: string;
       request: string;
       response: string;
-      chunks: string;
+      events: string;
     };
     metrics: {
       duration: string;
       request: string;
       response: string;
-      chunks: string;
+      events: string;
     };
     fields: {
       request: string;
@@ -67,8 +67,9 @@ export interface Messages {
       run: string;
     };
     reconstructError: string;
-    selectChunk: string;
-    offset: string;
+    selectEvent: string;
+    chunkRange: string;
+    rawEvent: string;
   };
 }
 

@@ -24,7 +24,7 @@ Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路
   - Anthropic：`MessageStream.fromReadableStream(...).finalMessage()`
   - OpenAI：`ResponseStream.fromReadableStream(...).finalResponse()`
 - 按 Claude Session Header、OpenAI Conversation 或 Response Chain 识别会话。
-- 提供本地 Dashboard，查看完整请求、完整响应和 SSE Chunks。
+- 提供本地 Dashboard，查看完整请求、完整响应和 SSE 事件。
 - Dashboard 支持中英文切换、浏览器语言识别和语言选择持久化。
 - 保存前自动脱敏 Authorization、API Key 和 Cookie 等敏感 Header。
 - 使用原始二进制文件和 JSONL 存储，不依赖数据库。
@@ -213,7 +213,7 @@ Dashboard 包含以下标签：
 - 完整请求：从 `request.bin` 解码并解析，通过可折叠 JSON 树展示。
 - 完整响应：通过官方 SDK 还原，并通过可折叠 JSON 树展示。
 - JSON 操作：全部展开、展开两层、收起节点和复制完整 JSON。
-- SSE Chunks：按到达顺序查看 HTTP chunk 的时间、长度、偏移、文本和 Base64。
+- SSE 事件：查看解析后的事件类型、时间、来源 chunk 范围、格式化数据和原始事件文本。
 
 如果流中断或官方 SDK 无法还原响应，Dashboard 会显示还原错误，同时继续提供原始响应和 chunk 记录。
 
