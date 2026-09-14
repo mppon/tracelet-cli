@@ -47,7 +47,7 @@ export class ProxyServer {
       });
     } catch (error) {
       // 记录器不可用时仍继续转发，避免改变 agent 的执行结果。
-      console.error("Tracelet 无法开始记录：", error);
+      console.error("Tracelet failed to start recording:", error);
     }
 
     const transport = target.protocol === "https:" ? https : http;
@@ -121,7 +121,7 @@ export class ProxyServer {
     /** 客户端提前断开时同步取消上游请求。 */
     function onClientClose(): void {
       if (!res.writableEnded && !settled) {
-        upstreamReq?.destroy(new Error("客户端已断开"));
+        upstreamReq?.destroy(new Error("Client disconnected"));
       }
     }
 

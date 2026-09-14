@@ -10,7 +10,7 @@ function runsDir(root: string): string {
 
   // 禁止将文件系统根目录或用户目录直接作为清理目标。
   if (data === parse(data).root || data === resolve(homedir())) {
-    throw new Error(`拒绝清理不安全的数据目录：${data}`);
+    throw new Error(`Refusing to clear unsafe data directory: ${data}`);
   }
 
   return join(data, "runs");

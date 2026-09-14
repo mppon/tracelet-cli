@@ -71,7 +71,7 @@ async function readClaudeUrl(path: string): Promise<string | undefined> {
       return undefined;
     }
 
-    throw new Error(`无法读取 Claude Code 配置：${path}`, { cause: error });
+    throw new Error(`Failed to read Claude Code configuration: ${path}`, { cause: error });
   }
 }
 

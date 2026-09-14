@@ -16,7 +16,7 @@ export interface RunOptions {
 export async function runAgent(agentId: AgentType, args: string[], options: RunOptions): Promise<number> {
   const adapter = agents[agentId];
   if (!(await adapter.detect())) {
-    throw new Error(`未找到 ${adapter.label} 命令：${adapter.command}`);
+    throw new Error(`${adapter.label} command not found: ${adapter.command}`);
   }
 
   const server = new TraceletServer({
@@ -35,7 +35,7 @@ export async function runAgent(agentId: AgentType, args: string[], options: RunO
   const proxyUrl = await server.addRun(run, adapter.protocol, await adapter.upstream());
 
   console.log(`Tracelet Dashboard: ${server.url()}`);
-  console.log(`正在启动 ${adapter.label}...`);
+  console.log(`Starting ${adapter.label}...`);
 
   let exitCode = 1;
   try {

@@ -12,7 +12,7 @@ import { runAgent, runDashboard, type RunOptions } from "./run.js";
 function parsePort(value: string): number {
   const port = Number.parseInt(value, 10);
   if (!Number.isInteger(port) || port < 0 || port > 65_535) {
-    throw new Error(`无效端口：${value}`);
+    throw new Error(`Invalid port: ${value}`);
   }
   return port;
 }
@@ -29,7 +29,7 @@ function getOptions(program: Command): RunOptions {
 /** 展示可用 agent 菜单并运行用户选择项。 */
 async function interactive(program: Command): Promise<void> {
   if (!process.stdin.isTTY) {
-    throw new Error("非交互环境请使用 tracelet claude 或 tracelet codex。");
+    throw new Error("Use tracelet claude or tracelet codex in a non-interactive environment.");
   }
 
   const [claudeReady, codexReady] = await Promise.all([
@@ -37,17 +37,17 @@ async function interactive(program: Command): Promise<void> {
     agents.codex.detect(),
   ]);
   const agent = await select<AgentType>({
-    message: "请选择要追踪的 Agent",
+    message: "Select an agent to trace",
     choices: [
       {
         name: "Claude Code",
         value: "claude",
-        ...(!claudeReady ? { disabled: "未检测到 claude 命令" } : {}),
+        ...(!claudeReady ? { disabled: "claude command not found" } : {}),
       },
       {
         name: "Codex",
         value: "codex",
-        ...(!codexReady ? { disabled: "未检测到 codex 命令" } : {}),
+        ...(!codexReady ? { disabled: "codex command not found" } : {}),
       },
     ],
   });
@@ -60,21 +60,21 @@ async function clearRecords(program: Command, yes: boolean): Promise<void> {
 
   if (!yes) {
     if (!process.stdin.isTTY) {
-      throw new Error("非交互环境请使用 tracelet clear --yes。");
+      throw new Error("Use tracelet clear --yes in a non-interactive environment.");
     }
 
     const accepted = await confirm({
-      message: `将永久删除 ${root} 中的全部 Tracelet 记录，是否继续？`,
+      message: `This will permanently delete all Tracelet records in ${root}. Continue?`,
       default: false,
     });
     if (!accepted) {
-      console.log("已取消清理。");
+      console.log("Clear cancelled.");
       return;
     }
   }
 
   await clearData(root);
-  console.log(`已清除全部 Tracelet 记录：${root}`);
+  console.log(`All Tracelet records cleared: ${root}`);
 }
 
 /** 创建并配置 Tracelet Commander 程序。 */
@@ -82,17 +82,17 @@ export function createProgram(): Command {
   const program = new Command();
   program
     .name("tracelet")
-    .description("记录 Claude Code 与 Codex 的 LLM 请求和流式响应")
+    .description("Record LLM requests and streaming responses from Claude Code and Codex")
     .version("0.1.0")
     .enablePositionalOptions()
-    .addOption(new Option("-p, --port <port>", "本地服务端口").default(4318).argParser(parsePort))
-    .option("--data-dir <path>", "本地记录目录")
+    .addOption(new Option("-p, --port <port>", "Local server port").default(4318).argParser(parsePort))
+    .option("--data-dir <path>", "Local trace directory")
     .action(() => interactive(program));
 
   for (const agentId of ["claude", "codex"] as const) {
     program
       .command(`${agentId} [args...]`)
-      .description(`启动并记录 ${agents[agentId].label}`)
+      .description(`Start and trace ${agents[agentId].label}`)
       .allowUnknownOption()
       .passThroughOptions()
       .action(async (args: string[]) => {
@@ -102,13 +102,13 @@ export function createProgram(): Command {
 
   program
     .command("dashboard")
-    .description("查看本地 Tracelet 历史记录")
+    .description("View local Tracelet history")
     .action(() => runDashboard(getOptions(program)));
 
   const clear = program
     .command("clear")
-    .description("清除全部本地 Tracelet 历史记录")
-    .option("-y, --yes", "跳过确认");
+    .description("Clear all local Tracelet history")
+    .option("-y, --yes", "Skip confirmation");
 
   /** 读取 clear 子命令参数并执行清理。 */
   clear.action(async () => {
