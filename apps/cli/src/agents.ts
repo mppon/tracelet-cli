@@ -34,6 +34,16 @@ interface ClaudeSettings {
   env?: Record<string, unknown>;
 }
 
+/** 将 Tracelet 本地地址加入子进程的代理绕过列表。 */
+function launchEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const values = [env.NO_PROXY, env.no_proxy, "127.0.0.1", "localhost", "::1"]
+    .flatMap((value) => value?.split(",") ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const noProxy = [...new Set(values)].join(",");
+  return { ...env, NO_PROXY: noProxy, no_proxy: noProxy };
+}
+
 /** 检查命令是否存在于当前 PATH。 */
 async function hasBin(command: string): Promise<boolean> {
   const paths = process.env.PATH?.split(delimiter) ?? [];
@@ -122,7 +132,7 @@ function launchClaude(proxyUrl: string, args: string[]): LaunchInfo {
   return {
     command: "claude",
     args: ["--settings", settings, ...args],
-    env: { ...process.env, ANTHROPIC_BASE_URL: proxyUrl },
+    env: { ...launchEnv(), ANTHROPIC_BASE_URL: proxyUrl },
   };
 }
 
@@ -143,7 +153,7 @@ function launchCodex(proxyUrl: string, args: string[]): LaunchInfo {
       `model_providers.${codexProvider}=${providerConfig(proxyUrl)}`,
       ...args,
     ],
-    env: { ...process.env },
+    env: launchEnv(),
   };
 }
 

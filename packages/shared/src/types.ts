@@ -86,6 +86,7 @@ export interface RouteInfo {
   protocol: Protocol;
   upstream: string;
   prefix: string;
+  proxy?: string;
 }
 
 export interface ExchangeSummary {

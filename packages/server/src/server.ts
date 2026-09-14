@@ -70,10 +70,10 @@ export class TraceletServer {
   }
 
   /** 注册一次 agent 运行及其固定上游地址。 */
-  async addRun(run: RunMeta, protocol: Protocol, upstream: string): Promise<string> {
+  async addRun(run: RunMeta, protocol: Protocol, upstream: string, proxy?: string): Promise<string> {
     await this.store.startRun(run);
     const prefix = `/_tracelet/p/${run.id}/${protocol}`;
-    this.routes.set(prefix, { runId: run.id, protocol, upstream, prefix });
+    this.routes.set(prefix, { runId: run.id, protocol, upstream, prefix, ...(proxy ? { proxy } : {}) });
     return `${this.url()}${prefix}`;
   }
 
@@ -100,6 +100,7 @@ export class TraceletServer {
 
       this.server.close(onClose);
     });
+    this.proxy.close();
   }
 
   /** 将请求分发到代理、Dashboard API 或静态资源。 */

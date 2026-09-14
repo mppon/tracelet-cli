@@ -7,6 +7,7 @@ import { agents } from "./agents.js";
 import { clearData } from "./clear.js";
 import { dataDir } from "./paths.js";
 import { runAgent, runDashboard, type RunOptions } from "./run.js";
+import { loadSettings, saveProxy, type ProxyMode } from "./settings.js";
 
 /** 将端口字符串转换为合法整数。 */
 function parsePort(value: string): number {
@@ -77,6 +78,25 @@ async function clearRecords(program: Command, yes: boolean): Promise<void> {
   console.log(`All Tracelet records cleared: ${root}`);
 }
 
+/** 通过 On/Off 菜单配置 Tracelet 是否使用系统代理。 */
+async function configureProxy(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    throw new Error("The proxy command requires an interactive terminal.");
+  }
+
+  const current = (await loadSettings()).proxy.mode;
+  const mode = await select<ProxyMode>({
+    message: "Use the system proxy for upstream requests?",
+    choices: [
+      { name: "On", value: "system" },
+      { name: "Off", value: "direct" },
+    ],
+    default: current,
+  });
+  await saveProxy(mode);
+  console.log(mode === "system" ? "System proxy enabled." : "System proxy disabled.");
+}
+
 /** 创建并配置 Tracelet Commander 程序。 */
 export function createProgram(): Command {
   const program = new Command();
@@ -104,6 +124,11 @@ export function createProgram(): Command {
     .command("dashboard")
     .description("View local Tracelet history")
     .action(() => runDashboard(getOptions(program)));
+
+  program
+    .command("proxy")
+    .description("Configure system proxy usage")
+    .action(configureProxy);
 
   const clear = program
     .command("clear")

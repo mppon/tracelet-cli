@@ -10,6 +10,11 @@ export function dataDir(value?: string): string {
   return resolve(value ?? process.env.TRACELET_DATA_DIR ?? resolve(homedir(), ".tracelet", "data"));
 }
 
+/** 返回当前用户的 Tracelet 配置文件路径。 */
+export function settingsFile(): string {
+  return resolve(homedir(), ".tracelet", "settings.json");
+}
+
 /** 查找开发环境或构建产物中的 Dashboard 目录。 */
 export function dashboardDir(): string {
   const bundled = fileURLToPath(new URL("./dashboard", import.meta.url));

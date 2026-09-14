@@ -15,6 +15,7 @@ Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路
 ## 当前功能
 
 - 基于 Commander 的 CLI，无参数运行时可选择 Claude Code 或 Codex。
+- 提供系统代理 On/Off 配置，支持读取 macOS 和 Windows 的固定系统代理。
 - 仅对当前 Agent 子进程覆盖 Base URL，不修改用户的全局配置。
 - 原样保存请求 body 和响应 body。
 - 对 Codex 的 `Content-Encoding: zstd` 请求副本进行只读解码，用于解析和展示。
@@ -92,6 +93,14 @@ Agent 运行期间，CLI 会输出本地 Dashboard 地址。Agent 退出后代�
 ```bash
 tracelet dashboard
 ```
+
+配置 Tracelet 向上游发起请求时是否使用当前 macOS 或 Windows 的固定系统代理：
+
+```bash
+tracelet proxy
+```
+
+交互式 On/Off 选项保存在 `~/.tracelet/settings.json`。启用后，Tracelet 会在 Agent 启动时读取当前系统代理；未找到固定代理时使用直连。
 
 清除全部已记录的运行和会话信息。Tracelet 会在删除前要求确认：
 

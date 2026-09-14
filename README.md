@@ -15,6 +15,7 @@ Tracelet does not modify request bodies. The proxy only forwards traffic, remove
 ## Features
 
 - Commander-based CLI with an interactive Claude Code/Codex selector.
+- Interactive system proxy On/Off setting for macOS and Windows.
 - Per-process Base URL overrides without changing global Agent configuration.
 - Byte-preserving request and response body storage.
 - Read-only decoding of Codex `Content-Encoding: zstd` request copies for parsing and display.
@@ -92,6 +93,14 @@ Start a standalone Dashboard for existing records:
 ```bash
 tracelet dashboard
 ```
+
+Configure whether Tracelet uses the current macOS or Windows fixed system proxy for upstream requests:
+
+```bash
+tracelet proxy
+```
+
+The interactive On/Off choice is saved in `~/.tracelet/settings.json`. When enabled, Tracelet reads the active system proxy at Agent startup. If no fixed proxy is found, Tracelet uses a direct connection.
 
 Clear all recorded runs and sessions. Tracelet asks for confirmation before deleting them:
 

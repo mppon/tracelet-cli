@@ -16,7 +16,9 @@
     "@inquirer/prompts": "^7.4.1",
     "@tracelet/server": "workspace:*",
     "@tracelet/shared": "workspace:*",
-    "commander": "^14.0.0"
+    "commander": "^14.0.0",
+    "http-proxy-agent": "^7.0.0",
+    "https-proxy-agent": "^7.0.0"
   },
   "devDependencies": {
     "tsup": "^8.5.0"

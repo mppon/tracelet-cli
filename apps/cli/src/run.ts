@@ -5,7 +5,9 @@ import { makeId, nowIso } from "@tracelet/shared";
 import { TraceletServer } from "@tracelet/server";
 import { agents } from "./agents.js";
 import { dashboardDir, dataDir } from "./paths.js";
+import { loadSettings } from "./settings.js";
 import { spawnAgent } from "./spawn.js";
+import { systemProxy } from "./system-proxy.js";
 
 export interface RunOptions {
   port: number;
@@ -17,6 +19,13 @@ export async function runAgent(agentId: AgentType, args: string[], options: RunO
   const adapter = agents[agentId];
   if (!(await adapter.detect())) {
     throw new Error(`${adapter.label} command not found: ${adapter.command}`);
+  }
+
+  const settings = await loadSettings();
+  // 仅在启用且成功发现系统代理时传递代理地址，否则保持原有直连行为。
+  const proxy = settings.proxy.mode === "system" ? await systemProxy() : undefined;
+  if (settings.proxy.mode === "system" && !proxy) {
+    console.warn("System proxy not found. Using a direct connection.");
   }
 
   const server = new TraceletServer({
@@ -32,7 +41,7 @@ export async function runAgent(agentId: AgentType, args: string[], options: RunO
     command: adapter.command,
     startedAt: nowIso(),
   };
-  const proxyUrl = await server.addRun(run, adapter.protocol, await adapter.upstream());
+  const proxyUrl = await server.addRun(run, adapter.protocol, await adapter.upstream(), proxy);
 
   console.log(`Tracelet Dashboard: ${server.url()}`);
   console.log(`Starting ${adapter.label}...`);

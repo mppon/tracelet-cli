@@ -18,5 +18,7 @@ describe("Codex launch", () => {
       "resume",
       "--last",
     ]);
+    expect(launch.env.NO_PROXY).toContain("127.0.0.1");
+    expect(launch.env.no_proxy).toContain("localhost");
   });
 });

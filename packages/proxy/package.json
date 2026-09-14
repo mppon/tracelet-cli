@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@tracelet/recorder": "workspace:*",
-    "@tracelet/shared": "workspace:*"
+    "@tracelet/shared": "workspace:*",
+    "http-proxy-agent": "^7.0.0",
+    "https-proxy-agent": "^7.0.0"
   }
 }

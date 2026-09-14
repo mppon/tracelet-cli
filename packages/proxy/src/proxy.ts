@@ -2,6 +2,8 @@
 
 import http, { type ClientRequest, type IncomingMessage, type ServerResponse } from "node:http";
 import https from "node:https";
+import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import type { Capture, Recorder } from "@tracelet/recorder";
 import type { RouteInfo } from "@tracelet/shared";
 import { requestHeaders, responseHeaders } from "./headers.js";
@@ -23,10 +25,38 @@ function failCapture(recorder: Recorder, capture: Capture | undefined, error: Er
 
 export class ProxyServer {
   private readonly recorder: Recorder;
+  private readonly agents = new Map<string, HttpProxyAgent<string> | HttpsProxyAgent<string>>();
 
   /** 创建共享 Recorder 的透明代理。 */
   constructor(recorder: Recorder) {
     this.recorder = recorder;
+  }
+
+  /** 返回当前上游协议可复用的代理 Agent。 */
+  private agent(target: URL, proxy: string | undefined): HttpProxyAgent<string> | HttpsProxyAgent<string> | undefined {
+    if (!proxy) {
+      return undefined;
+    }
+
+    const key = `${target.protocol}:${proxy}`;
+    const cached = this.agents.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const agent = target.protocol === "https:"
+      ? new HttpsProxyAgent(proxy, { keepAlive: true })
+      : new HttpProxyAgent(proxy, { keepAlive: true });
+    this.agents.set(key, agent);
+    return agent;
+  }
+
+  /** 关闭全部系统代理连接。 */
+  close(): void {
+    for (const agent of this.agents.values()) {
+      agent.destroy();
+    }
+    this.agents.clear();
   }
 
   /** 转发一次请求，并同步记录请求体与响应流。 */
@@ -56,6 +86,8 @@ export class ProxyServer {
       {
         method: req.method,
         headers: requestHeaders(req.headers, target.host),
+        // Proxy Agent 只改变上游连接路径，不修改请求内容。
+        agent: this.agent(target, route.proxy),
       },
       (upstreamRes) => {
         capture?.resStart(upstreamRes.statusCode ?? 502, upstreamRes.headers);

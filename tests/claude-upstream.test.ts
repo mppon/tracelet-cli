@@ -57,5 +57,7 @@ describe("Claude upstream", () => {
     expect(settings.env?.ANTHROPIC_BASE_URL).toBe(proxyUrl);
     expect(launch.args.slice(2)).toEqual(["--resume"]);
     expect(launch.env.ANTHROPIC_BASE_URL).toBe(proxyUrl);
+    expect(launch.env.NO_PROXY).toContain("127.0.0.1");
+    expect(launch.env.no_proxy).toContain("localhost");
   });
 });

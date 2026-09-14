@@ -110,4 +110,47 @@ describe("Tracelet proxy", () => {
     expect(detail?.response).toMatchObject({ id: "msg_proxy", content: [{ text: "完成" }] });
     expect(detail?.chunks.length).toBeGreaterThan(0);
   });
+
+  /** 验证指定代理后不会直接解析或连接上游地址。 */
+  it("通过 HTTP 代理连接上游", async () => {
+    const root = await mkdtemp(join(tmpdir(), "tracelet-proxy-"));
+    const dashboard = join(root, "dashboard");
+    await mkdir(dashboard);
+    let target = "";
+    const forward = http.createServer((req, res) => {
+      target = req.url ?? "";
+      req.resume();
+      req.once("end", () => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ id: "proxied" }));
+      });
+    });
+    const forwardUrl = await listen(forward);
+    const tracelet = new TraceletServer({ dataDir: root, dashboardDir: dashboard });
+    await tracelet.listen(0);
+    const run: RunMeta = {
+      id: "run_system_proxy",
+      agent: "claude",
+      cwd: root,
+      command: "claude",
+      startedAt: new Date().toISOString(),
+    };
+    const proxyUrl = await tracelet.addRun(
+      run,
+      "anthropic",
+      "http://unresolved.tracelet.test",
+      forwardUrl,
+    );
+
+    const response = await fetch(`${proxyUrl}/v1/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-test", stream: false }),
+    });
+    expect(await response.json()).toEqual({ id: "proxied" });
+    expect(target).toBe("http://unresolved.tracelet.test/v1/messages");
+
+    await tracelet.close();
+    await close(forward);
+  });
 });
