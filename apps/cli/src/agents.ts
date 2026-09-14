@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import type { AgentType, Protocol } from "@tracelet/shared";
 
 const exec = promisify(execFile);
+const codexProvider = "tracelet";
 
 export interface LaunchInfo {
   command: string;
@@ -125,12 +126,23 @@ function launchClaude(proxyUrl: string, args: string[]): LaunchInfo {
   };
 }
 
-/** 生成 Codex 的临时 Base URL 覆盖参数。 */
+/** 生成禁用 WebSocket 的 Codex 临时 Provider 配置。 */
+function providerConfig(proxyUrl: string): string {
+  return `{ name = "Tracelet", base_url = ${JSON.stringify(proxyUrl)}, wire_api = "responses", requires_openai_auth = true, supports_websockets = false }`;
+}
+
+/** 生成只对当前进程生效的 Codex Provider 覆盖参数。 */
 function launchCodex(proxyUrl: string, args: string[]): LaunchInfo {
   return {
     command: "codex",
     // 参数通过 spawn 数组传递，不经过 shell 展开。
-    args: ["-c", `openai_base_url=${JSON.stringify(proxyUrl)}`, ...args],
+    args: [
+      "-c",
+      `model_provider=${JSON.stringify(codexProvider)}`,
+      "-c",
+      `model_providers.${codexProvider}=${providerConfig(proxyUrl)}`,
+      ...args,
+    ],
     env: { ...process.env },
   };
 }

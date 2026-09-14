@@ -2,6 +2,7 @@
 
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { buildResponse, decodeBody, parseRequest } from "@tracelet/protocols";
 import type {
   ChunkRow,
   ChunkView,
@@ -16,6 +17,24 @@ import { readJson, readJsonl } from "./files.js";
 interface StoredMeta {
   dir: string;
   meta: ExchangeMeta;
+}
+
+/** 使用 Codex 请求 Header 修正旧记录中的会话归属。 */
+function normalizeMeta(meta: ExchangeMeta): ExchangeMeta {
+  if (meta.protocol !== "openai" || meta.sessionSource !== "run") {
+    return meta;
+  }
+
+  const session = meta.requestHeaders["session-id"] ?? meta.requestHeaders["thread-id"];
+  return typeof session === "string" && session
+    ? { ...meta, sessionId: `codex:${session}`, sessionSource: "header" }
+    : meta;
+}
+
+/** 按记录的 Content-Encoding 返回可展示的请求文本。 */
+function decodeText(body: Buffer, meta: ExchangeMeta): string {
+  const decoded = decodeBody(body, meta.requestHeaders["content-encoding"]);
+  return Buffer.from(decoded).toString("utf8");
 }
 
 /** 读取目录；目录不存在时返回空列表。 */
@@ -40,7 +59,8 @@ async function scan(root: string): Promise<StoredMeta[]> {
       for (const exchange of await readDirs(exchangesDir)) {
         const dir = join(exchangesDir, exchange);
         try {
-          result.push({ dir, meta: await readJson<ExchangeMeta>(join(dir, "meta.json")) });
+          const meta = await readJson<ExchangeMeta>(join(dir, "meta.json"));
+          result.push({ dir, meta: normalizeMeta(meta) });
         } catch {
           // 未完成的损坏记录不进入 Dashboard 列表。
         }
@@ -108,18 +128,30 @@ export async function getExchange(root: string, id: string): Promise<ExchangeDet
     readJsonl<ChunkRow>(join(stored.dir, "response-chunks.jsonl")),
     readJsonl<SseRow>(join(stored.dir, "sse-events.jsonl")),
   ]);
-  const requestText = requestBody.toString("utf8");
+  let requestText = requestBody.toString("utf8");
+  try {
+    requestText = decodeText(requestBody, stored.meta);
+  } catch {
+    // 不支持的编码仍回退到原始文本，保证旧记录可以打开。
+  }
   const responseText = responseBody.toString("utf8");
   const chunks: ChunkView[] = chunkRows.map((row) => {
     const data = responseBody.subarray(row.offset, row.offset + row.length);
     return { ...row, text: data.toString("utf8"), base64: data.toString("base64") };
   });
 
+  let meta = stored.meta;
   let request: unknown = requestText;
   let response: unknown = responseText;
 
   try {
-    request = JSON.parse(requestText) as unknown;
+    const parsed = parseRequest(requestText);
+    request = parsed.body;
+    meta = {
+      ...meta,
+      stream: parsed.stream,
+      ...(parsed.model ? { model: parsed.model } : {}),
+    };
   } catch {
     // 非 JSON 请求仍通过原始文本展示。
   }
@@ -127,8 +159,16 @@ export async function getExchange(root: string, id: string): Promise<ExchangeDet
   try {
     response = await readJson<unknown>(join(stored.dir, "reconstructed.json"));
   } catch {
-    // 未完成的流仍通过原始 SSE 文本展示。
+    try {
+      if (events.length > 0) {
+        response = await buildResponse(meta.protocol, events);
+        const { reconstructError: _error, ...validMeta } = meta;
+        meta = validMeta;
+      }
+    } catch {
+      // 无法还原的流仍通过原始 SSE 文本展示。
+    }
   }
 
-  return { meta: stored.meta, requestText, responseText, request, response, chunks, events };
+  return { meta, requestText, responseText, request, response, chunks, events };
 }

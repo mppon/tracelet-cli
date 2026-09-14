@@ -17,6 +17,7 @@ Tracelet does not modify request bodies. The proxy only forwards traffic, remove
 - Commander-based CLI with an interactive Claude Code/Codex selector.
 - Per-process Base URL overrides without changing global Agent configuration.
 - Byte-preserving request and response body storage.
+- Read-only decoding of Codex `Content-Encoding: zstd` request copies for parsing and display.
 - Sequence, arrival time, offset, and length for every request and response chunk.
 - Incremental SSE parsing across arbitrary chunk boundaries.
 - Complete streamed-response reconstruction through official SDK methods:
@@ -28,7 +29,7 @@ Tracelet does not modify request bodies. The proxy only forwards traffic, remove
 - Automatic redaction of Authorization, API Key, and Cookie headers before persistence.
 - Raw binary and JSONL storage with no database dependency.
 
-> A Tracelet chunk is a chunk delivered to the proxy through a Node.js Stream `data` event. It is not guaranteed to match a single TCP packet.
+> A Tracelet chunk is delivered through a Node.js Stream `data` event and is not guaranteed to match a single TCP packet or SSE event.
 
 ## Requirements
 
@@ -134,7 +135,7 @@ tracelet --port 4318 --data-dir ./trace-data codex
 | `TRACELET_CODEX_UPSTREAM` | Overrides the original Codex upstream URL |
 | `CLAUDE_CONFIG_DIR` | Overrides the Claude Code user configuration directory |
 
-Claude Code connects through an `ANTHROPIC_BASE_URL` value injected into both the child-process environment and an additional `--settings` object. The CLI setting prevents an existing `env.ANTHROPIC_BASE_URL` in Claude settings files from bypassing the proxy. Codex connects through a per-process `openai_base_url` setting. Tracelet does not write to permanent Claude Code or Codex configuration files.
+Claude Code connects through an `ANTHROPIC_BASE_URL` value injected into both the child-process environment and an additional `--settings` object. The CLI setting prevents an existing `env.ANTHROPIC_BASE_URL` in Claude settings files from bypassing the proxy. Codex receives a temporary custom provider through `-c`; its Base URL points to Tracelet, `requires_openai_auth` reuses the current login, and `supports_websockets=false` makes it use HTTP/SSE directly. These overrides only affect the child process. Tracelet does not write to permanent Claude Code or Codex configuration files.
 
 Claude upstream resolution order:
 
@@ -154,9 +155,10 @@ Claude Code detection order:
 
 Codex/OpenAI detection order:
 
-1. Use `conversation` or `conversation.id` from the request.
-2. Resolve `previous_response_id` to the session of the previous response.
-3. Fall back to the current Tracelet run when no protocol-level identifier is available.
+1. Use Codex `session-id` or `thread-id` headers when available.
+2. Use `conversation` or `conversation.id` from the request.
+3. Resolve `previous_response_id` to the session of the previous response.
+4. Fall back to the current Tracelet run when no protocol-level identifier is available.
 
 The OpenAI Response Chain map currently lives in process memory. Consecutive interactions within one Tracelet run are grouped correctly, but Response Chain recovery across Tracelet restarts is not implemented yet.
 
@@ -185,7 +187,7 @@ The default directory layout is:
 | --- | --- |
 | `run.json` | Agent working directory, command, timestamps, and exit code |
 | `meta.json` | Protocol, path, model, session, status, redacted headers, byte counts, and capture status |
-| `request.bin` | Complete raw request body bytes |
+| `request.bin` | Complete raw request body bytes; compressed Codex requests remain byte-identical |
 | `request-chunks.jsonl` | Request chunk indexes and arrival times |
 | `response.bin` | Complete raw response body bytes |
 | `response-chunks.jsonl` | Response chunk indexes and arrival times |
@@ -198,7 +200,7 @@ Example chunk index:
 {"seq":3,"tUs":128430,"offset":2048,"length":736}
 ```
 
-The Dashboard uses `offset` and `length` to extract each original chunk from `response.bin`. Text and Base64 views are generated when queried, so chunk data is not stored twice.
+The Dashboard uses `offset` and `length` to extract each original chunk from `response.bin`. Text and Base64 views are generated when queried, so chunk data is not stored twice. A zstd request is decoded only from its stored copy when metadata or Dashboard JSON is generated.
 
 ## Dashboard
 
@@ -206,10 +208,10 @@ The Dashboard provides:
 
 - A `中文 / EN` switch that updates the interface immediately and persists the selection in `localStorage`.
 - Overview: model, protocol, status, duration, response size, and session source.
-- Complete Request: the full request parsed from `request.bin`, shown as a collapsible JSON tree.
+- Complete Request: the full request decoded and parsed from `request.bin`, shown as a collapsible JSON tree.
 - Complete Response: the response object reconstructed by the official SDK, shown as a collapsible JSON tree.
 - JSON controls: expand all, expand two levels, collapse nodes, and copy the complete JSON.
-- SSE Chunks: arrival order, timing, length, offset, text, and Base64.
+- SSE Chunks: HTTP chunk arrival order, timing, length, offset, text, and Base64.
 
 If a stream is interrupted or the SDK cannot reconstruct the response, the Dashboard reports the reconstruction error while retaining the raw response and chunk records.
 
@@ -257,4 +259,4 @@ pnpm build
 - Retention policies and capacity-based cleanup are not implemented yet.
 - Dashboard queries scan local files. A SQLite index can be added for large datasets while retaining raw `.bin` and JSONL files.
 - OpenAI Response Chains cannot yet be restored across Tracelet processes.
-- Only HTTP/HTTPS traffic routed through a configurable Base URL is supported.
+- WebSocket transport is not proxied or recorded; Tracelet currently captures HTTP responses and SSE streams.

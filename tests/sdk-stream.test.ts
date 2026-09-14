@@ -102,4 +102,43 @@ describe("官方 SDK 响应还原", () => {
     expect(response?.id).toBe("resp_test");
     expect(response?.output_text).toBe("你好");
   });
+
+  /** 验证 Codex lite 的空终态仍由 SDK 累加出完整 output。 */
+  it("还原 Codex lite 响应", async () => {
+    const base = {
+      id: "resp_lite",
+      object: "response",
+      created_at: 1,
+      status: "in_progress",
+      output: [],
+      error: null,
+      incomplete_details: null,
+      model: "gpt-test",
+    };
+    const item = {
+      id: "msg_lite",
+      type: "message",
+      status: "completed",
+      role: "assistant",
+      content: [{ type: "output_text", text: "完成", annotations: [], logprobs: [] }],
+    };
+    const events = [
+      row(0, { type: "response.created", sequence_number: 0, response: base }),
+      row(1, { type: "response.in_progress", sequence_number: 1, response: base }),
+      row(2, { type: "response.output_item.added", sequence_number: 2, output_index: 0, item }),
+      row(3, { type: "response.output_item.done", sequence_number: 3, output_index: 0, item }),
+      row(4, {
+        type: "response.completed",
+        sequence_number: 4,
+        response: { ...base, status: "completed", completed_at: 2 },
+      }),
+    ];
+
+    const response = (await buildResponse("openai", events)) as {
+      status?: string;
+      output_text?: string;
+    };
+    expect(response.status).toBe("completed");
+    expect(response.output_text).toBe("完成");
+  });
 });

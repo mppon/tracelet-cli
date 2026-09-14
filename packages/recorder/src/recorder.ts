@@ -1,7 +1,7 @@
 /** 本文件负责协调原始流记录、SSE 分帧、会话识别和 SDK 响应还原。 */
 
 import type { IncomingHttpHeaders } from "node:http";
-import { buildResponse, parseRequest } from "@tracelet/protocols";
+import { buildResponse, decodeBody, parseRequest } from "@tracelet/protocols";
 import {
   elapsedUs,
   makeId,
@@ -35,6 +35,7 @@ export class Capture {
   private readonly events: SseRow[] = [];
   private readonly parser: SseParser;
   private meta: ExchangeMeta;
+  private done = false;
 
   /** 创建一次请求的完整捕获上下文。 */
   constructor(
@@ -60,9 +61,10 @@ export class Capture {
 
   /** 在请求 body 完成后解析模型参数并识别会话。 */
   reqEnd(): void {
-    const text = Buffer.concat(this.reqParts).toString("utf8");
-
     try {
+      const raw = Buffer.concat(this.reqParts);
+      const body = decodeBody(raw, this.meta.requestHeaders["content-encoding"]);
+      const text = Buffer.from(body).toString("utf8");
       const parsed = parseRequest(text);
       const session = this.resolver.resolve(
         this.meta.protocol,
@@ -113,6 +115,10 @@ export class Capture {
 
   /** 完成记录，并通过对应官方 SDK 生成完整响应对象。 */
   async end(): Promise<void> {
+    if (this.done) {
+      return;
+    }
+    this.done = true;
     this.parser.end();
 
     try {
@@ -141,6 +147,10 @@ export class Capture {
 
   /** 标记上游请求失败并结束当前记录。 */
   async fail(error: Error): Promise<void> {
+    if (this.done) {
+      return;
+    }
+    this.done = true;
     this.meta = {
       ...this.meta,
       error: error.message,

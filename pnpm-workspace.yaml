@@ -3,6 +3,9 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# 固定使用项目内虚拟存储，避免不同 pnpm 环境重复重建依赖链接。
+enableGlobalVirtualStore: false
+
 # esbuild 是 Vite、Vitest 和 tsup 的必要本地构建依赖。
 onlyBuiltDependencies:
   - esbuild

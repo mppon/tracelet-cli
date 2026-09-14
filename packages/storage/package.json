@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@tracelet/protocols": "workspace:*",
     "@tracelet/shared": "workspace:*"
   }
 }

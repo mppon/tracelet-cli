@@ -1,4 +1,4 @@
-/** 本文件负责组合代理、记录器、文件存储和 Dashboard 服务。 */
+/** 本文件负责组合 HTTP 代理、记录器、文件存储和 Dashboard 服务。 */
 
 import http, { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ProxyServer } from "@tracelet/proxy";
@@ -105,9 +105,7 @@ export class TraceletServer {
   /** 将请求分发到代理、Dashboard API 或静态资源。 */
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? "/", this.url());
-    const route = [...this.routes.values()].find(
-      (item) => url.pathname === item.prefix || url.pathname.startsWith(`${item.prefix}/`),
-    );
+    const route = this.findRoute(url.pathname);
 
     if (route) {
       await this.proxy.handle(req, res, route);
@@ -126,4 +124,12 @@ export class TraceletServer {
 
     await serveStatic(this.dashboardDir, url.pathname, res);
   }
+
+  /** 查找一个本地代理路径对应的运行路由。 */
+  private findRoute(path: string): RouteInfo | undefined {
+    return [...this.routes.values()].find(
+      (item) => path === item.prefix || path.startsWith(`${item.prefix}/`),
+    );
+  }
+
 }

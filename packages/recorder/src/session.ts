@@ -24,6 +24,13 @@ export class SessionResolver {
       }
     }
 
+    if (protocol === "openai") {
+      const session = headers?.["session-id"] ?? headers?.["thread-id"];
+      if (typeof session === "string" && session) {
+        return { id: `codex:${session}`, source: "header" };
+      }
+    }
+
     const conversation = data?.conversation;
     const conversationId =
       typeof conversation === "string"

@@ -17,6 +17,7 @@ Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路
 - 基于 Commander 的 CLI，无参数运行时可选择 Claude Code 或 Codex。
 - 仅对当前 Agent 子进程覆盖 Base URL，不修改用户的全局配置。
 - 原样保存请求 body 和响应 body。
+- 对 Codex 的 `Content-Encoding: zstd` 请求副本进行只读解码，用于解析和展示。
 - 记录每个请求、响应网络 chunk 的序号、到达时间、偏移和长度。
 - 增量解析跨 chunk 的 SSE 事件。
 - 使用官方 SDK 还原完整流式响应：
@@ -28,7 +29,7 @@ Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路
 - 保存前自动脱敏 Authorization、API Key 和 Cookie 等敏感 Header。
 - 使用原始二进制文件和 JSONL 存储，不依赖数据库。
 
-> Tracelet 中的 chunk 是 Node.js Stream `data` 事件实际交付给代理的分块，不保证等同于底层单个 TCP 数据包。
+> Tracelet chunk 来自 Node.js Stream `data` 事件，不保证等同于底层单个 TCP 数据包或一条 SSE 事件。
 
 ## 环境要求
 
@@ -134,7 +135,7 @@ tracelet --port 4318 --data-dir ./trace-data claude
 | `TRACELET_CODEX_UPSTREAM` | 覆盖 Codex 原始上游地址 |
 | `CLAUDE_CONFIG_DIR` | 覆盖 Claude Code 用户配置目录 |
 
-Claude Code 通过同时注入子进程环境变量和附加 `--settings` 对象中的 `ANTHROPIC_BASE_URL` 接入代理。CLI settings 可以避免 Claude 配置文件中已有的 `env.ANTHROPIC_BASE_URL` 再次覆盖代理地址。Codex 通过当前进程的 `openai_base_url` 配置接入代理。Tracelet 不写入 Claude Code 或 Codex 的永久配置文件。
+Claude Code 通过同时注入子进程环境变量和附加 `--settings` 对象中的 `ANTHROPIC_BASE_URL` 接入代理。CLI settings 可以避免 Claude 配置文件中已有的 `env.ANTHROPIC_BASE_URL` 再次覆盖代理地址。Codex 通过 `-c` 接收临时自定义 Provider：Base URL 指向 Tracelet，`requires_openai_auth` 复用当前登录，`supports_websockets=false` 使其直接使用 HTTP/SSE。这些覆盖只对当前子进程生效，Tracelet 不写入 Claude Code 或 Codex 的永久配置文件。
 
 Claude upstream 的解析顺序为：
 
@@ -154,9 +155,10 @@ Claude Code 按以下顺序识别：
 
 Codex/OpenAI 按以下顺序识别：
 
-1. 使用请求中的 `conversation` 或 `conversation.id`。
-2. 使用 `previous_response_id` 查找前一个响应所属的会话。
-3. 没有协议级标识时回退到当前 Tracelet run。
+1. 优先使用 Codex 的 `session-id` 或 `thread-id` Header。
+2. 使用请求中的 `conversation` 或 `conversation.id`。
+3. 使用 `previous_response_id` 查找前一个响应所属的会话。
+4. 没有协议级标识时回退到当前 Tracelet run。
 
 OpenAI Response Chain 当前保存在运行时内存中，因此同一次 Tracelet 运行中的连续交互可以正确关联；Tracelet 重启后的跨进程 Response Chain 恢复尚未实现。
 
@@ -187,7 +189,7 @@ OpenAI Response Chain 当前保存在运行时内存中，因此同一次 Tracel
 | --- | --- |
 | `run.json` | 本次 Agent 启动目录、命令、开始时间、结束时间和退出码 |
 | `meta.json` | 协议、路径、模型、会话、状态码、脱敏 Header、字节数和捕获状态 |
-| `request.bin` | 完整原始请求 body 字节 |
+| `request.bin` | 完整原始请求 body 字节，Codex 压缩请求仍保持字节一致 |
 | `request-chunks.jsonl` | 请求 chunk 的索引与到达时间 |
 | `response.bin` | 完整原始响应 body 字节 |
 | `response-chunks.jsonl` | 响应 chunk 的索引与到达时间 |
@@ -200,7 +202,7 @@ OpenAI Response Chain 当前保存在运行时内存中，因此同一次 Tracel
 {"seq":3,"tUs":128430,"offset":2048,"length":736}
 ```
 
-Dashboard 根据 `offset` 和 `length` 从 `response.bin` 提取原始 chunk，并在查询时生成文本与 Base64 展示，不重复保存 chunk 内容。
+Dashboard 根据 `offset` 和 `length` 从 `response.bin` 提取原始 chunk，并在查询时生成文本与 Base64 展示，不重复保存 chunk 内容。zstd 请求只在生成元数据或 Dashboard JSON 时对已保存的副本进行解码。
 
 ## Dashboard
 
@@ -208,10 +210,10 @@ Dashboard 包含以下标签：
 
 - `中文 / EN` 切换按钮会立即更新界面，并使用 `localStorage` 保存语言选择。
 - 概览：模型、协议、状态、耗时、响应大小和会话来源。
-- 完整请求：从 `request.bin` 读取并解析，通过可折叠 JSON 树展示。
+- 完整请求：从 `request.bin` 解码并解析，通过可折叠 JSON 树展示。
 - 完整响应：通过官方 SDK 还原，并通过可折叠 JSON 树展示。
 - JSON 操作：全部展开、展开两层、收起节点和复制完整 JSON。
-- SSE Chunks：按到达顺序查看时间、长度、偏移、文本和 Base64。
+- SSE Chunks：按到达顺序查看 HTTP chunk 的时间、长度、偏移、文本和 Base64。
 
 如果流中断或官方 SDK 无法还原响应，Dashboard 会显示还原错误，同时继续提供原始响应和 chunk 记录。
 
@@ -259,4 +261,4 @@ pnpm build
 - 尚未提供按保留期限和容量自动清理的能力。
 - Dashboard 查询会扫描本地文件；数据量很大后可增加 SQLite 索引，原始 `.bin` 和 JSONL 仍可继续保留。
 - OpenAI Response Chain 尚不能跨 Tracelet 进程恢复。
-- 只支持通过 Base URL 配置接入的 HTTP/HTTPS 请求。
+- 不代理或记录 WebSocket 传输；Tracelet 当前只捕获 HTTP 响应和 SSE 流。

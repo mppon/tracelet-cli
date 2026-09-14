@@ -1,4 +1,4 @@
-/** 本文件验证 Claude 显式会话和 OpenAI 响应链识别。 */
+/** 本文件验证 Claude、Codex Header 和 OpenAI 响应链识别。 */
 
 import { describe, expect, it } from "vitest";
 import { SessionResolver } from "@tracelet/recorder";
@@ -24,5 +24,13 @@ describe("SessionResolver", () => {
     const match = resolver.resolve("openai", {}, { previous_response_id: "resp-a" }, "run-b");
 
     expect(match).toMatchObject({ id: "run:run-a", source: "response-chain" });
+  });
+
+  /** 验证 Codex 使用稳定的 session-id Header 聚合。 */
+  it("识别 Codex 会话 Header", () => {
+    const resolver = new SessionResolver();
+    const match = resolver.resolve("openai", { "session-id": "session-codex" }, {}, "run-a");
+
+    expect(match).toEqual({ id: "codex:session-codex", source: "header" });
   });
 });

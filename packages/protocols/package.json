@@ -10,6 +10,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
     "@tracelet/shared": "workspace:*",
+    "fzstd": "^0.1.1",
     "openai": "^7.15.0"
   }
 }

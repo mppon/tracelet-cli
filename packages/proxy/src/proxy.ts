@@ -1,22 +1,11 @@
-/** 本文件负责透明转发请求与流式响应，并把流量副本交给 Recorder。 */
+/** 本文件负责透明转发 HTTP 请求与流式响应，并把流量副本交给 Recorder。 */
 
 import http, { type ClientRequest, type IncomingMessage, type ServerResponse } from "node:http";
 import https from "node:https";
 import type { Capture, Recorder } from "@tracelet/recorder";
 import type { RouteInfo } from "@tracelet/shared";
 import { requestHeaders, responseHeaders } from "./headers.js";
-
-/** 将本地代理路径转换为最终上游 URL。 */
-function targetUrl(route: RouteInfo, input: string): URL {
-  const local = new URL(input, "http://127.0.0.1");
-  const target = new URL(route.upstream);
-  const suffix = local.pathname.slice(route.prefix.length).replace(/^\//, "");
-  const basePath = target.pathname.replace(/\/$/, "");
-
-  target.pathname = `${basePath}/${suffix}`;
-  target.search = local.search;
-  return target;
-}
+import { targetUrl } from "./target.js";
 
 /** 将记录任务交给 Recorder 后台收尾。 */
 function finishCapture(recorder: Recorder, capture: Capture | undefined): void {
