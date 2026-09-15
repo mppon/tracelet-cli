@@ -1,26 +1,37 @@
 {
-  "name": "@tracelet/cli",
-  "private": true,
+  "name": "tracelet-cli",
+  "private": false,
   "version": "0.1.0",
+  "description": "Record and inspect Claude Code and Codex LLM traffic locally.",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "bin": {
     "tracelet": "dist/bin.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/bin.ts",
     "start": "node dist/bin.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepack": "pnpm -w build"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
-    "@tracelet/server": "workspace:*",
-    "@tracelet/shared": "workspace:*",
     "commander": "^14.0.0",
     "http-proxy-agent": "^7.0.0",
     "https-proxy-agent": "^7.0.0"
   },
   "devDependencies": {
+    "@tracelet/server": "workspace:*",
+    "@tracelet/shared": "workspace:*",
     "tsup": "^8.5.0"
   }
 }

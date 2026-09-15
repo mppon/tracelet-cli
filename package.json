@@ -8,8 +8,8 @@
   },
   "packageManager": "pnpm@11.19.0",
   "scripts": {
-    "build": "pnpm --filter @tracelet/dashboard build && pnpm --filter @tracelet/cli build && node scripts/copy-dashboard.mjs",
-    "dev": "pnpm --filter @tracelet/dashboard build && pnpm --filter @tracelet/cli dev",
+    "build": "pnpm --filter @tracelet/dashboard build && pnpm --filter tracelet-cli build && node scripts/copy-dashboard.mjs",
+    "dev": "pnpm --filter @tracelet/dashboard build && pnpm --filter tracelet-cli dev",
     "test": "vitest run",
     "typecheck": "pnpm -r --if-present typecheck"
   },

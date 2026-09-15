@@ -18,6 +18,21 @@ Tracelet does not modify request bodies. The proxy only forwards traffic, remove
 - pnpm 11
 - An installed and authenticated `claude` or `codex` command
 
+## Installation
+
+Install the published CLI globally:
+
+```bash
+npm install --global tracelet-cli
+tracelet
+```
+
+Or run it without a global installation:
+
+```bash
+npx tracelet-cli
+```
+
 ## Quick Start
 
 ```bash

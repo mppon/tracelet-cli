@@ -18,6 +18,21 @@ Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路
 - pnpm 11
 - 已安装并登录 `claude` 或 `codex`
 
+## 安装
+
+全局安装已发布的 CLI：
+
+```bash
+npm install --global tracelet-cli
+tracelet
+```
+
+也可以不全局安装直接运行：
+
+```bash
+npx tracelet-cli
+```
+
 ## 快速开始
 
 ```bash
