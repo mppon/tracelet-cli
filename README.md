@@ -76,6 +76,9 @@ tracelet dashboard
 
 The Dashboard provides:
 
+- Conversation view: rebuilds the complete session from existing records, with user messages on the right, AI messages on the left, and tool calls as linked timeline cards.
+- Conversation filters: switch among messages, tool calls, and reasoning, with internal title/summary tasks hidden by default.
+- Requests view: lists the underlying LLM requests for the selected session and opens the selected exchange in the inspector.
 - Overview: model, protocol, status, duration, response size, and session source.
 - Complete Request: the full request decoded and parsed from `request.bin`, shown as a collapsible JSON tree.
 - Complete Response: the response object reconstructed by the official SDK, shown as a collapsible JSON tree.

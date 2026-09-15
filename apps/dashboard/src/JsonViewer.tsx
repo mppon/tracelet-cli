@@ -1,6 +1,6 @@
 /** 本文件负责以可折叠树结构展示请求和响应 JSON。 */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { JsonView } from "react-json-view-lite";
 import { formatJson } from "./format";
 import { useI18n } from "./i18n";
@@ -30,9 +30,38 @@ const jsonStyles = {
   },
 };
 
+interface DepthButtonsProps {
+  className: string;
+  depth: number;
+  /** 设置 JSON 树的展开深度。 */
+  onChange(depth: number): void;
+}
+
 /** 判断数据是否可以交给 JSON 树组件展示。 */
 function isJsonData(value: unknown): value is object | unknown[] {
   return value !== null && typeof value === "object";
+}
+
+/** 展示 JSON 树的三种展开层级操作。 */
+function DepthButtons({ className, depth, onChange }: DepthButtonsProps) {
+  const { messages } = useI18n();
+  return (
+    <div className={className}>
+      <button
+        aria-pressed={depth === Number.POSITIVE_INFINITY}
+        type="button"
+        onClick={() => onChange(Number.POSITIVE_INFINITY)}
+      >
+        {messages.json.expandAll}
+      </button>
+      <button aria-pressed={depth === 2} type="button" onClick={() => onChange(2)}>
+        {messages.json.expandTwo}
+      </button>
+      <button aria-pressed={depth === 1} type="button" onClick={() => onChange(1)}>
+        {messages.json.collapse}
+      </button>
+    </div>
+  );
 }
 
 /** 展示支持折叠层级和复制操作的 JSON 树。 */
@@ -40,6 +69,7 @@ export function JsonViewer({ label, value }: { label: string; value: unknown }) 
   const { messages } = useI18n();
   const [depth, setDepth] = useState(2);
   const [copied, setCopied] = useState(false);
+  const menu = useRef<HTMLDetailsElement>(null);
 
   /** 切换请求时恢复默认展开层级和复制状态。 */
   useEffect(() => {
@@ -60,6 +90,14 @@ export function JsonViewer({ label, value }: { label: string; value: unknown }) 
     window.setTimeout(() => setCopied(false), 1500);
   }
 
+  /** 更新树形展开深度，并关闭极窄布局中的操作菜单。 */
+  function changeDepth(value: number): void {
+    setDepth(value);
+    if (menu.current) {
+      menu.current.open = false;
+    }
+  }
+
   return (
     <div className="json-viewer">
       <div className="json-toolbar">
@@ -67,20 +105,14 @@ export function JsonViewer({ label, value }: { label: string; value: unknown }) 
           <strong>{label}</strong>
           <span>{messages.json.format}</span>
         </div>
-        <div className="json-actions">
-          <button type="button" onClick={() => setDepth(Number.POSITIVE_INFINITY)}>
-            {messages.json.expandAll}
-          </button>
-          <button type="button" onClick={() => setDepth(2)}>
-            {messages.json.expandTwo}
-          </button>
-          <button type="button" onClick={() => setDepth(1)}>
-            {messages.json.collapse}
-          </button>
-          <button aria-live="polite" className="copy-json" type="button" onClick={() => void copy()}>
-            {copied ? messages.json.copied : messages.json.copy}
-          </button>
-        </div>
+        <DepthButtons className="json-tree-actions" depth={depth} onChange={changeDepth} />
+        <details className="json-more" ref={menu}>
+          <summary>{messages.json.view}</summary>
+          <DepthButtons className="json-menu" depth={depth} onChange={changeDepth} />
+        </details>
+        <button aria-live="polite" className="copy-json" type="button" onClick={() => void copy()}>
+          {copied ? messages.json.copied : messages.json.copy}
+        </button>
       </div>
       <div className="json-scroll">
         {isJsonData(value) ? (

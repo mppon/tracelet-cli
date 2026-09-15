@@ -39,7 +39,43 @@ export interface SessionSummary {
   protocol: "anthropic" | "openai";
   startedAt: string;
   endedAt?: string;
+  internal?: boolean;
   exchanges: ExchangeSummary[];
+}
+
+export type ConversationKind = "message" | "tool" | "reasoning";
+
+export interface ConversationItem {
+  id: string;
+  kind: ConversationKind;
+  role?: "user" | "assistant";
+  text?: string;
+  name?: string;
+  callId?: string;
+  input?: unknown;
+  output?: unknown;
+  status?: "pending" | "complete" | "error";
+  startedAt: string;
+  exchangeIds: string[];
+}
+
+export interface ConversationTurn {
+  id: string;
+  internal: boolean;
+  startedAt: string;
+  completedAt?: string;
+  exchangeIds: string[];
+  items: ConversationItem[];
+}
+
+export interface ConversationDetail {
+  sessionId: string;
+  protocol: "anthropic" | "openai";
+  model?: string;
+  startedAt: string;
+  endedAt?: string;
+  exchangeIds: string[];
+  turns: ConversationTurn[];
 }
 
 export interface ExchangeDetail {

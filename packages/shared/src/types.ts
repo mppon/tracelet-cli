@@ -109,7 +109,45 @@ export interface SessionSummary {
   protocol: Protocol;
   startedAt: string;
   endedAt?: string;
+  internal?: boolean;
   exchanges: ExchangeSummary[];
+}
+
+export type ConversationKind = "message" | "tool" | "reasoning";
+
+export type ConversationRole = "user" | "assistant";
+
+export interface ConversationItem {
+  id: string;
+  kind: ConversationKind;
+  role?: ConversationRole;
+  text?: string;
+  name?: string;
+  callId?: string;
+  input?: unknown;
+  output?: unknown;
+  status?: "pending" | "complete" | "error";
+  startedAt: string;
+  exchangeIds: string[];
+}
+
+export interface ConversationTurn {
+  id: string;
+  internal: boolean;
+  startedAt: string;
+  completedAt?: string;
+  exchangeIds: string[];
+  items: ConversationItem[];
+}
+
+export interface ConversationDetail {
+  sessionId: string;
+  protocol: Protocol;
+  model?: string;
+  startedAt: string;
+  endedAt?: string;
+  exchangeIds: string[];
+  turns: ConversationTurn[];
 }
 
 export interface ExchangeDetail {

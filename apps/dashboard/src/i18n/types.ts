@@ -5,6 +5,7 @@ export type Locale = "zh-CN" | "en";
 export interface Messages {
   app: {
     loadSessionsError: string;
+    loadConversationError: string;
     loadExchangeError: string;
   };
   language: {
@@ -19,6 +20,34 @@ export interface Messages {
     unknownModel: string;
     complete: string;
     recording: string;
+    exchanges: string;
+    internal: string;
+  };
+  conversation: {
+    loading: string;
+    emptyTitle: string;
+    emptyHint: string;
+    conversation: string;
+    requests: string;
+    all: string;
+    messages: string;
+    tools: string;
+    reasoning: string;
+    showInternal: string;
+    internal: string;
+    user: string;
+    assistant: string;
+    turns: string;
+    exchanges: string;
+    toolCall: string;
+    result: string;
+    pending: string;
+    complete: string;
+    error: string;
+    noInput: string;
+    noOutput: string;
+    noItems: string;
+    resizePane: string;
   };
   json: {
     format: string;
@@ -27,6 +56,7 @@ export interface Messages {
     collapse: string;
     copy: string;
     copied: string;
+    view: string;
     collapseAria: string;
     expandAria: string;
   };

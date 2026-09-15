@@ -1,7 +1,7 @@
 /** 本文件负责处理 Dashboard 使用的本地只读 API。 */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { getExchange, listSessions } from "@tracelet/storage";
+import { getConversation, getExchange, listSessions } from "@tracelet/storage";
 import { LiveBus } from "./live.js";
 
 /** 返回 JSON 响应。 */
@@ -28,6 +28,13 @@ export async function serveApi(
 
   if (req.method === "GET" && pathname === "/api/sessions") {
     sendJson(res, 200, { sessions: await listSessions(dataDir) });
+    return true;
+  }
+
+  const conversationMatch = pathname.match(/^\/api\/conversations\/([^/]+)$/);
+  if (req.method === "GET" && conversationMatch?.[1]) {
+    const conversation = await getConversation(dataDir, decodeURIComponent(conversationMatch[1]));
+    sendJson(res, conversation ? 200 : 404, conversation ?? { error: "conversation_not_found" });
     return true;
   }
 

@@ -1,7 +1,7 @@
 /** 本文件负责展示请求指标、完整对象和 SSE 事件。 */
 
 import { useMemo, useState } from "react";
-import { formatBytes, formatJson, formatTime } from "./format";
+import { formatBytes, formatJson, formatTime, shortId } from "./format";
 import { useI18n, type Locale, type Messages } from "./i18n";
 import { JsonViewer } from "./JsonViewer";
 import type { ExchangeDetail, SseEvent } from "./types";
@@ -199,24 +199,24 @@ export function Detail({ detail, loading }: DetailProps) {
   const [tab, setTab] = useState<Tab>("overview");
 
   if (loading) {
-    return <main className="detail empty-state"><span className="loader" />{messages.detail.loading}</main>;
+    return <aside className="detail empty-state"><span className="loader" />{messages.detail.loading}</aside>;
   }
   if (!detail) {
     return (
-      <main className="detail empty-state">
+      <aside className="detail empty-state">
         <div className="empty-glyph">{"{ }"}</div>
         <h2>{messages.detail.emptyTitle}</h2>
         <p>{messages.detail.emptyHint}</p>
-      </main>
+      </aside>
     );
   }
 
   return (
-    <main className="detail">
+    <aside className="detail">
       <header className="detail-head">
         <div className="detail-title">
           <span className="eyebrow">{detail.meta.method} · {detail.meta.protocol}</span>
-          <h2>{detail.meta.model ?? messages.detail.unknownModel}</h2>
+          <h2>{shortId(detail.meta.id)}</h2>
           <p>{detail.meta.path}</p>
         </div>
         <span className={detail.meta.captureComplete ? "status complete" : "status pending"}>
@@ -224,8 +224,6 @@ export function Detail({ detail, loading }: DetailProps) {
           {detail.meta.captureComplete ? messages.detail.complete : messages.detail.recording}
         </span>
       </header>
-
-      <Metrics detail={detail} />
 
       <nav className="tabs" aria-label={messages.detail.navLabel}>
         {tabs.map((item) => (
@@ -242,8 +240,9 @@ export function Detail({ detail, loading }: DetailProps) {
       </nav>
 
       <section className="tab-content">
+        {tab === "overview" ? <Metrics detail={detail} /> : null}
         <TabContent tab={tab} detail={detail} />
       </section>
-    </main>
+    </aside>
   );
 }

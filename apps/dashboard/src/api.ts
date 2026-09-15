@@ -1,8 +1,8 @@
 /** 本文件负责访问 Tracelet 本地查询接口和实时事件流。 */
 
-import type { ExchangeDetail, SessionSummary } from "./types";
+import type { ConversationDetail, ExchangeDetail, SessionSummary } from "./types";
 
-export type ApiKind = "sessions" | "exchange";
+export type ApiKind = "sessions" | "conversation" | "exchange";
 
 export class ApiError extends Error {
   readonly kind: ApiKind;
@@ -24,6 +24,15 @@ export async function fetchSessions(): Promise<SessionSummary[]> {
   }
   const body = (await response.json()) as { sessions?: SessionSummary[] };
   return body?.sessions ?? [];
+}
+
+/** 读取一个 Session 动态还原后的完整会话。 */
+export async function fetchConversation(id: string): Promise<ConversationDetail> {
+  const response = await fetch(`/api/conversations/${encodeURIComponent(id)}`);
+  if (!response.ok) {
+    throw new ApiError("conversation", response.status);
+  }
+  return (await response.json()) as ConversationDetail;
 }
 
 /** 读取一次模型请求的完整记录。 */

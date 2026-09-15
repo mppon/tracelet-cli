@@ -1,13 +1,13 @@
-/** 本文件负责展示会话及其模型请求导航列表。 */
+/** 本文件负责展示会话导航和界面语言切换。 */
 
-import type { SessionSummary } from "./types";
 import { formatTime, shortId } from "./format";
 import { useI18n, type Locale } from "./i18n";
+import type { SessionSummary } from "./types";
 
 interface SidebarProps {
   sessions: SessionSummary[];
   selected: string | undefined;
-  /** 切换当前展示的 exchange。 */
+  /** 切换当前展示的会话。 */
   onSelect(id: string): void;
 }
 
@@ -16,7 +16,51 @@ const locales: Array<{ id: Locale; short: string }> = [
   { id: "en", short: "EN" },
 ];
 
-/** 展示按 Session 分组的 Exchange 列表。 */
+/** 返回会话最后使用的模型名称。 */
+function lastModel(session: SessionSummary): string | undefined {
+  for (let index = session.exchanges.length - 1; index >= 0; index -= 1) {
+    const model = session.exchanges[index]?.model;
+    if (model) {
+      return model;
+    }
+  }
+  return undefined;
+}
+
+/** 展示一个可选择的会话摘要。 */
+function SessionCard({
+  session,
+  active,
+  onSelect,
+}: {
+  session: SessionSummary;
+  active: boolean;
+  /** 选中当前会话。 */
+  onSelect(id: string): void;
+}) {
+  const { locale, messages } = useI18n();
+  const provider = session.protocol === "anthropic" ? "Claude" : "Codex";
+  return (
+    <button
+      className={active ? "session-card active" : "session-card"}
+      type="button"
+      onClick={() => onSelect(session.id)}
+    >
+      <span className="session-card-head">
+        <span className={`provider ${session.protocol}`}>{provider}</span>
+        {session.internal ? <span className="sidebar-internal">{messages.sidebar.internal}</span> : null}
+        <time>{formatTime(session.startedAt, locale)}</time>
+      </span>
+      <strong>{shortId(session.id)}</strong>
+      <span className="session-card-foot">
+        <span>{lastModel(session) ?? messages.sidebar.unknownModel}</span>
+        <span>{session.exchanges.length} {messages.sidebar.exchanges}</span>
+      </span>
+    </button>
+  );
+}
+
+/** 展示按时间排列的 Session 列表。 */
 export function Sidebar({ sessions, selected, onSelect }: SidebarProps) {
   const { locale, messages, setLocale } = useI18n();
 
@@ -27,20 +71,6 @@ export function Sidebar({ sessions, selected, onSelect }: SidebarProps) {
         <div className="brand-copy">
           <h1>Tracelet</h1>
           <p>{messages.sidebar.subtitle}</p>
-        </div>
-        <div className="locale-switch" role="group" aria-label={messages.language.label}>
-          {locales.map((item) => (
-            <button
-              aria-pressed={locale === item.id}
-              className={locale === item.id ? "active" : ""}
-              key={item.id}
-              title={item.id === "zh-CN" ? messages.language.chinese : messages.language.english}
-              type="button"
-              onClick={() => setLocale(item.id)}
-            >
-              {item.short}
-            </button>
-          ))}
         </div>
       </header>
 
@@ -56,37 +86,32 @@ export function Sidebar({ sessions, selected, onSelect }: SidebarProps) {
             <p>{messages.sidebar.noRecords}</p>
           </div>
         ) : null}
-
         {sessions.map((session) => (
-          <section className="session" key={session.id}>
-            <div className="session-head">
-              <span className={`provider ${session.protocol}`}>{session.protocol === "anthropic" ? "Claude" : "OpenAI"}</span>
-              <strong>{shortId(session.id)}</strong>
-              <time>{formatTime(session.startedAt, locale)}</time>
-            </div>
-            <div className="exchange-list">
-              {session.exchanges.map((exchange, index) => (
-                <button
-                  className={selected === exchange.id ? "exchange active" : "exchange"}
-                  key={exchange.id}
-                  type="button"
-                  onClick={() => onSelect(exchange.id)}
-                >
-                  <span className="exchange-index">{index + 1}</span>
-                  <span className="exchange-main">
-                    <strong>{exchange.model ?? messages.sidebar.unknownModel}</strong>
-                    <small>{exchange.path}</small>
-                  </span>
-                  <span
-                    className={exchange.captureComplete ? "dot complete" : "dot pending"}
-                    title={exchange.captureComplete ? messages.sidebar.complete : messages.sidebar.recording}
-                  />
-                </button>
-              ))}
-            </div>
-          </section>
+          <SessionCard
+            active={selected === session.id}
+            key={session.id}
+            session={session}
+            onSelect={onSelect}
+          />
         ))}
       </div>
+
+      <footer className="sidebar-foot">
+        <div className="locale-switch" role="group" aria-label={messages.language.label}>
+          {locales.map((item) => (
+            <button
+              aria-pressed={locale === item.id}
+              className={locale === item.id ? "active" : ""}
+              key={item.id}
+              title={item.id === "zh-CN" ? messages.language.chinese : messages.language.english}
+              type="button"
+              onClick={() => setLocale(item.id)}
+            >
+              {item.short}
+            </button>
+          ))}
+        </div>
+      </footer>
     </aside>
   );
 }

@@ -9,10 +9,12 @@ import type {
   ExchangeDetail,
   ExchangeMeta,
   ExchangeSummary,
+  ConversationDetail,
   SessionSummary,
   SseRow,
 } from "@tracelet/shared";
 import { readJson, readJsonl } from "./files.js";
+import { buildConversation } from "./conversation.js";
 
 interface StoredMeta {
   dir: string;
@@ -22,8 +24,27 @@ interface StoredMeta {
 /** 判断一次记录是否属于 Dashboard 需要展示的模型交互。 */
 function isVisible(meta: ExchangeMeta): boolean {
   const path = meta.path.split("?", 1)[0];
-  // 模型列表属于 Codex 启动元数据，不计入用户会话。
-  return !(meta.protocol === "openai" && meta.method === "GET" && path?.endsWith("/models"));
+  if (meta.method !== "POST") {
+    return false;
+  }
+  // 只让实际推理接口进入会话，模型列表和健康检查仍保留在磁盘。
+  return meta.protocol === "anthropic"
+    ? Boolean(path?.endsWith("/messages"))
+    : Boolean(path?.endsWith("/responses") || path?.endsWith("/chat/completions"));
+}
+
+/** 判断 Codex Exchange 是否由系统后台任务发起。 */
+function isInternal(meta: ExchangeMeta): boolean {
+  const value = meta.requestHeaders?.["x-codex-turn-metadata"];
+  const text = Array.isArray(value) ? value[0] : value;
+  if (!text) {
+    return false;
+  }
+  try {
+    return (JSON.parse(text) as { thread_source?: string })?.thread_source === "system";
+  } catch {
+    return false;
+  }
 }
 
 /** 使用 Codex 请求 Header 修正旧记录中的会话归属。 */
@@ -108,6 +129,7 @@ export async function listSessions(root: string): Promise<SessionSummary[]> {
     const current = groups.get(item.meta.sessionId);
     if (current) {
       current.exchanges.push(toSummary(item.meta));
+      current.internal = current.internal === true && isInternal(item.meta);
       if (item.meta.completedAt) {
         current.endedAt = item.meta.completedAt;
       }
@@ -119,6 +141,7 @@ export async function listSessions(root: string): Promise<SessionSummary[]> {
       protocol: item.meta.protocol,
       startedAt: item.meta.startedAt,
       ...(item.meta.completedAt ? { endedAt: item.meta.completedAt } : {}),
+      ...(isInternal(item.meta) ? { internal: true } : {}),
       exchanges: [toSummary(item.meta)],
     });
   }
@@ -127,12 +150,7 @@ export async function listSessions(root: string): Promise<SessionSummary[]> {
 }
 
 /** 读取一次 exchange 的完整请求、响应、chunk 和事件。 */
-export async function getExchange(root: string, id: string): Promise<ExchangeDetail | undefined> {
-  const stored = (await scan(root)).find((item) => item.meta.id === id);
-  if (!stored) {
-    return undefined;
-  }
-
+async function readExchange(stored: StoredMeta): Promise<ExchangeDetail> {
   const [requestBody, responseBody, chunkRows, events] = await Promise.all([
     readFile(join(stored.dir, "request.bin")),
     readFile(join(stored.dir, "response.bin")),
@@ -182,4 +200,32 @@ export async function getExchange(root: string, id: string): Promise<ExchangeDet
   }
 
   return { meta, requestText, responseText, request, response, chunks, events };
+}
+
+/** 读取一次 exchange 的完整请求、响应、chunk 和事件。 */
+export async function getExchange(root: string, id: string): Promise<ExchangeDetail | undefined> {
+  const stored = (await scan(root)).find((item) => item.meta.id === id);
+  return stored ? readExchange(stored) : undefined;
+}
+
+/** 从现有 Exchange 动态还原指定会话。 */
+export async function getConversation(root: string, sessionId: string): Promise<ConversationDetail | undefined> {
+  const stored = (await scan(root)).filter(
+    (item) => item.meta.sessionId === sessionId && isVisible(item.meta),
+  );
+  if (stored.length === 0) {
+    return undefined;
+  }
+
+  const exchanges = await Promise.all(stored.map((item) => readExchange(item)));
+  const first = stored[0]!.meta;
+  const last = stored.at(-1)!.meta;
+  const session: SessionSummary = {
+    id: sessionId,
+    protocol: first.protocol,
+    startedAt: first.startedAt,
+    ...(last.completedAt ? { endedAt: last.completedAt } : {}),
+    exchanges: stored.map((item) => toSummary(item.meta)),
+  };
+  return buildConversation(session, exchanges);
 }
