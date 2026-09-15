@@ -10,27 +10,7 @@ Tracelet 是一个面向 Claude Code 和 Codex 的本地流量记录工具。
 
 Tracelet 是一个使用 TypeScript 编写的本地命令行工具。它启动本地 HTTP 代理，将 Claude Code 或 Codex 本次运行的 Base URL 临时指向代理，记录 Agent 发给 LLM 的请求、上游响应以及代理实际观察到的每个流式 chunk。
 
-Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路径移除和 HTTP 逐跳 Header 处理，同时把流量副本保存在本地。
-
-## 当前功能
-
-- 基于 Commander 的 CLI，无参数运行时可选择 Claude Code 或 Codex。
-- 提供系统代理 On/Off 配置，支持读取 macOS 和 Windows 的固定系统代理。
-- 仅对当前 Agent 子进程覆盖 Base URL，不修改用户的全局配置。
-- 原样保存请求 body 和响应 body。
-- 对 Codex 的 `Content-Encoding: zstd` 请求副本进行只读解码，用于解析和展示。
-- 记录每个请求、响应网络 chunk 的序号、到达时间、偏移和长度。
-- 增量解析跨 chunk 的 SSE 事件。
-- 使用官方 SDK 还原完整流式响应：
-  - Anthropic：`MessageStream.fromReadableStream(...).finalMessage()`
-  - OpenAI：`ResponseStream.fromReadableStream(...).finalResponse()`
-- 按 Claude Session Header、OpenAI Conversation 或 Response Chain 识别会话。
-- 提供本地 Dashboard，查看完整请求、完整响应和 SSE 事件。
-- Dashboard 支持中英文切换、浏览器语言识别和语言选择持久化。
-- 保存前自动脱敏 Authorization、API Key 和 Cookie 等敏感 Header。
-- 使用原始二进制文件和 JSONL 存储，不依赖数据库。
-
-> Tracelet chunk 来自 Node.js Stream `data` 事件，不保证等同于底层单个 TCP 数据包或一条 SSE 事件。
+Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路径移除和 HTTP 逐跳 Header 处理，同时把流量副本保存在本地。Tracelet 不会写入 Claude Code 或 Codex 的永久配置文件。
 
 ## 环境要求
 
@@ -38,17 +18,18 @@ Tracelet 不修改请求 body。代理只完成请求转发、必要的代理路
 - pnpm 11
 - 已安装并登录 `claude` 或 `codex`
 
-## 安装与构建
+## 快速开始
 
 ```bash
+# 1. 构建
 pnpm install
 pnpm build
-```
 
-构建完成后可以直接运行：
-
-```bash
+# 2. 通过代理启动 Claude Code 或 Codex
 node apps/cli/dist/bin.js
+
+# 3. 打开 CLI 输出的 Dashboard 地址
+#    http://127.0.0.1:4318
 ```
 
 如果希望在本机直接使用 `tracelet` 命令，可以建立开发链接：
@@ -61,21 +42,18 @@ tracelet
 
 ## 启动方式
 
+### 记录一次会话
+
 不带子命令启动时，Tracelet 会显示 Claude Code 和 Codex 选择菜单：
 
 ```bash
 tracelet
 ```
 
-直接启动 Claude Code：
+也可以直接启动指定 Agent：
 
 ```bash
 tracelet claude
-```
-
-直接启动 Codex：
-
-```bash
 tracelet codex
 ```
 
@@ -88,11 +66,26 @@ tracelet codex -- --model gpt-5.6-sol
 
 Agent 运行期间，CLI 会输出本地 Dashboard 地址。Agent 退出后代理服务也会退出，历史记录仍保留在本地。
 
-单独查看历史记录：
+### 查看历史记录
+
+单独启动只读 Dashboard 查看已有记录，按 `Ctrl+C` 结束：
 
 ```bash
 tracelet dashboard
 ```
+
+Dashboard 包含以下能力：
+
+- 概览：模型、协议、状态、耗时、响应大小和会话来源。
+- 完整请求：从 `request.bin` 解码并解析，通过可折叠 JSON 树展示。
+- 完整响应：通过官方 SDK 还原，并通过可折叠 JSON 树展示。
+- JSON 操作：全部展开、展开两层、收起节点和复制完整 JSON。
+- SSE 事件：查看解析后的事件类型、时间、来源 chunk 范围、格式化数据和原始事件文本。
+- `中文 / EN` 切换按钮会立即更新界面，并使用 `localStorage` 保存语言选择。
+
+如果流中断或官方 SDK 无法还原响应，Dashboard 会显示还原错误，同时继续提供原始响应和 chunk 记录。
+
+### 配置系统代理
 
 配置 Tracelet 向上游发起请求时是否使用当前 macOS 或 Windows 的固定系统代理：
 
@@ -101,6 +94,8 @@ tracelet proxy
 ```
 
 交互式 On/Off 选项保存在 `~/.tracelet/settings.json`。启用后，Tracelet 会在 Agent 启动时读取当前系统代理；未找到固定代理时使用直连。
+
+### 清除历史记录
 
 清除全部已记录的运行和会话信息。Tracelet 会在删除前要求确认：
 
@@ -120,7 +115,7 @@ tracelet clear --yes
 tracelet --data-dir ./trace-data clear --yes
 ```
 
-## CLI 参数
+### CLI 参数
 
 公共参数需要放在子命令之前：
 
@@ -135,7 +130,9 @@ tracelet --port 4318 --data-dir ./trace-data claude
 | `-V, --version` | — | 输出版本号 |
 | `-h, --help` | — | 输出帮助信息 |
 
-## 环境变量
+数据目录优先级为 `--data-dir` > `TRACELET_DATA_DIR` > `~/.tracelet/data`。
+
+### 环境变量
 
 | 环境变量 | 说明 |
 | --- | --- |
@@ -144,7 +141,7 @@ tracelet --port 4318 --data-dir ./trace-data claude
 | `TRACELET_CODEX_UPSTREAM` | 覆盖 Codex 原始上游地址 |
 | `CLAUDE_CONFIG_DIR` | 覆盖 Claude Code 用户配置目录 |
 
-Claude Code 通过同时注入子进程环境变量和附加 `--settings` 对象中的 `ANTHROPIC_BASE_URL` 接入代理。CLI settings 可以避免 Claude 配置文件中已有的 `env.ANTHROPIC_BASE_URL` 再次覆盖代理地址。Codex 通过 `-c` 接收临时自定义 Provider：Base URL 指向 Tracelet，`requires_openai_auth` 复用当前登录，`supports_websockets=false` 使其直接使用 HTTP/SSE。这些覆盖只对当前子进程生效，Tracelet 不写入 Claude Code 或 Codex 的永久配置文件。
+Claude Code 通过同时注入子进程环境变量和附加 `--settings` 对象中的 `ANTHROPIC_BASE_URL` 接入代理。CLI settings 可以避免 Claude 配置文件中已有的 `env.ANTHROPIC_BASE_URL` 再次覆盖代理地址。Codex 通过 `-c` 接收临时自定义 Provider：Base URL 指向 Tracelet，`requires_openai_auth` 复用当前登录，`supports_websockets=false` 使其直接使用 HTTP/SSE。这些覆盖只对当前子进程生效。
 
 Claude upstream 的解析顺序为：
 
@@ -154,7 +151,19 @@ Claude upstream 的解析顺序为：
 4. `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json` 中的 `env.ANTHROPIC_BASE_URL`。
 5. `https://api.anthropic.com`。
 
-## 会话识别
+## 记录的内容
+
+- 原样保存请求 body 和响应 body。Codex 的 `Content-Encoding: zstd` 请求在磁盘上保持字节一致，解码是只读的，仅用于解析和展示。
+- 记录每个请求、响应网络 chunk 的序号、到达时间、偏移和长度。
+- 增量解析跨 chunk 的 SSE 事件。
+- 使用官方 SDK 还原完整流式响应：
+  - Anthropic：`MessageStream.fromReadableStream(...).finalMessage()`
+  - OpenAI：`ResponseStream.fromReadableStream(...).finalResponse()`
+- 按 Claude Session Header、OpenAI Conversation 或 Response Chain 识别会话。
+
+> Tracelet chunk 来自 Node.js Stream `data` 事件，不保证等同于底层单个 TCP 数据包或一条 SSE 事件。
+
+### 会话识别
 
 Claude Code 按以下顺序识别：
 
@@ -213,20 +222,9 @@ OpenAI Response Chain 当前保存在运行时内存中，因此同一次 Tracel
 
 Dashboard 根据 `offset` 和 `length` 从 `response.bin` 提取原始 chunk，并在查询时生成文本与 Base64 展示，不重复保存 chunk 内容。zstd 请求只在生成元数据或 Dashboard JSON 时对已保存的副本进行解码。
 
-## Dashboard
+## 开发
 
-Dashboard 包含以下标签：
-
-- `中文 / EN` 切换按钮会立即更新界面，并使用 `localStorage` 保存语言选择。
-- 概览：模型、协议、状态、耗时、响应大小和会话来源。
-- 完整请求：从 `request.bin` 解码并解析，通过可折叠 JSON 树展示。
-- 完整响应：通过官方 SDK 还原，并通过可折叠 JSON 树展示。
-- JSON 操作：全部展开、展开两层、收起节点和复制完整 JSON。
-- SSE 事件：查看解析后的事件类型、时间、来源 chunk 范围、格式化数据和原始事件文本。
-
-如果流中断或官方 SDK 无法还原响应，Dashboard 会显示还原错误，同时继续提供原始响应和 chunk 记录。
-
-## 项目结构
+项目结构：
 
 ```text
 apps/
@@ -241,8 +239,6 @@ packages/
 └── storage/      # 原始文件、JSONL 写入和查询
 tests/            # 单元测试与代理集成测试
 ```
-
-## 开发与校验
 
 开发模式：
 

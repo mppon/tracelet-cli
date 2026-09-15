@@ -10,27 +10,7 @@ Tracelet is a local traffic recorder for Claude Code and Codex.
 
 Tracelet is a local command-line tool written in TypeScript. It starts a local HTTP proxy, temporarily points the Base URL of the current Claude Code or Codex process to that proxy, and records requests sent to the LLM, upstream responses, and every stream chunk observed by the proxy.
 
-Tracelet does not modify request bodies. The proxy only forwards traffic, removes its internal route prefix, handles required hop-by-hop HTTP headers, and stores a local copy of the traffic.
-
-## Features
-
-- Commander-based CLI with an interactive Claude Code/Codex selector.
-- Interactive system proxy On/Off setting for macOS and Windows.
-- Per-process Base URL overrides without changing global Agent configuration.
-- Byte-preserving request and response body storage.
-- Read-only decoding of Codex `Content-Encoding: zstd` request copies for parsing and display.
-- Sequence, arrival time, offset, and length for every request and response chunk.
-- Incremental SSE parsing across arbitrary chunk boundaries.
-- Complete streamed-response reconstruction through official SDK methods:
-  - Anthropic: `MessageStream.fromReadableStream(...).finalMessage()`
-  - OpenAI: `ResponseStream.fromReadableStream(...).finalResponse()`
-- Session grouping through Claude Session Headers, OpenAI Conversations, and Response Chains.
-- Local Dashboard with Complete Request, Complete Response, and SSE Events tabs.
-- Chinese and English Dashboard UI with browser detection and persistent language selection.
-- Automatic redaction of Authorization, API Key, and Cookie headers before persistence.
-- Raw binary and JSONL storage with no database dependency.
-
-> A Tracelet chunk is delivered through a Node.js Stream `data` event and is not guaranteed to match a single TCP packet or SSE event.
+Tracelet does not modify request bodies. The proxy only forwards traffic, removes its internal route prefix, handles required hop-by-hop HTTP headers, and stores a local copy of the traffic. Tracelet never writes to permanent Claude Code or Codex configuration files.
 
 ## Requirements
 
@@ -38,17 +18,18 @@ Tracelet does not modify request bodies. The proxy only forwards traffic, remove
 - pnpm 11
 - An installed and authenticated `claude` or `codex` command
 
-## Install and build
+## Quick Start
 
 ```bash
+# 1. Build
 pnpm install
 pnpm build
-```
 
-Run the built CLI directly:
-
-```bash
+# 2. Start Claude Code or Codex through the proxy
 node apps/cli/dist/bin.js
+
+# 3. Open the Dashboard URL printed by the CLI
+#    http://127.0.0.1:4318
 ```
 
 Optionally create a development link for the global `tracelet` command:
@@ -61,46 +42,60 @@ tracelet
 
 ## Usage
 
+### Record a session
+
 Run without a subcommand to choose Claude Code or Codex interactively:
 
 ```bash
 tracelet
 ```
 
-Start Claude Code directly:
+Or start a specific agent directly:
 
 ```bash
 tracelet claude
-```
-
-Start Codex directly:
-
-```bash
 tracelet codex
 ```
 
-Place Agent arguments after `--` so they are passed through unchanged:
+Agent arguments placed after `--` are passed through unchanged:
 
 ```bash
 tracelet claude -- --resume
 tracelet codex -- --model gpt-5.6-sol
 ```
 
-The CLI prints the local Dashboard URL while the Agent is running. The proxy exits with the Agent, while recorded history remains available on disk.
+While the agent runs, the CLI prints the local Dashboard URL. The proxy exits when the agent exits, while recorded history remains available on disk.
 
-Start a standalone Dashboard for existing records:
+### View recorded traffic
+
+Start a standalone Dashboard for existing records. It keeps running until you press `Ctrl+C`:
 
 ```bash
 tracelet dashboard
 ```
 
-Configure whether Tracelet uses the current macOS or Windows fixed system proxy for upstream requests:
+The Dashboard provides:
+
+- Overview: model, protocol, status, duration, response size, and session source.
+- Complete Request: the full request decoded and parsed from `request.bin`, shown as a collapsible JSON tree.
+- Complete Response: the response object reconstructed by the official SDK, shown as a collapsible JSON tree.
+- JSON controls: expand all, expand two levels, collapse nodes, and copy the complete JSON.
+- SSE Events: parsed event type, timing, source chunk range, formatted data, and raw event text.
+- A `中文 / EN` switch that updates the interface immediately and persists the selection in `localStorage`.
+
+If a stream is interrupted or the SDK cannot reconstruct the response, the Dashboard reports the reconstruction error while retaining the raw response and chunk records.
+
+### Configure the system proxy
+
+Configure whether Tracelet uses the current macOS or Windows fixed system proxy for its own upstream requests:
 
 ```bash
 tracelet proxy
 ```
 
 The interactive On/Off choice is saved in `~/.tracelet/settings.json`. When enabled, Tracelet reads the active system proxy at Agent startup. If no fixed proxy is found, Tracelet uses a direct connection.
+
+### Clear history
 
 Clear all recorded runs and sessions. Tracelet asks for confirmation before deleting them:
 
@@ -120,9 +115,9 @@ The command only removes the resolved data directory's `runs/` folder and recrea
 tracelet --data-dir ./trace-data clear --yes
 ```
 
-## CLI options
+### CLI options
 
-Place shared options before the subcommand:
+Shared options must be placed before the subcommand:
 
 ```bash
 tracelet --port 4318 --data-dir ./trace-data codex
@@ -135,7 +130,9 @@ tracelet --port 4318 --data-dir ./trace-data codex
 | `-V, --version` | — | Print the version |
 | `-h, --help` | — | Print command help |
 
-## Environment variables
+The data directory resolves as `--data-dir` > `TRACELET_DATA_DIR` > `~/.tracelet/data`.
+
+### Environment variables
 
 | Variable | Description |
 | --- | --- |
@@ -144,7 +141,7 @@ tracelet --port 4318 --data-dir ./trace-data codex
 | `TRACELET_CODEX_UPSTREAM` | Overrides the original Codex upstream URL |
 | `CLAUDE_CONFIG_DIR` | Overrides the Claude Code user configuration directory |
 
-Claude Code connects through an `ANTHROPIC_BASE_URL` value injected into both the child-process environment and an additional `--settings` object. The CLI setting prevents an existing `env.ANTHROPIC_BASE_URL` in Claude settings files from bypassing the proxy. Codex receives a temporary custom provider through `-c`; its Base URL points to Tracelet, `requires_openai_auth` reuses the current login, and `supports_websockets=false` makes it use HTTP/SSE directly. These overrides only affect the child process. Tracelet does not write to permanent Claude Code or Codex configuration files.
+Claude Code connects through an `ANTHROPIC_BASE_URL` value injected into both the child-process environment and an additional `--settings` object. The CLI setting prevents an existing `env.ANTHROPIC_BASE_URL` in Claude settings files from bypassing the proxy. Codex receives a temporary custom provider through `-c`; its Base URL points to Tracelet, `requires_openai_auth` reuses the current login, and `supports_websockets=false` makes it use HTTP/SSE directly. These overrides only affect the child process.
 
 Claude upstream resolution order:
 
@@ -154,7 +151,19 @@ Claude upstream resolution order:
 4. `env.ANTHROPIC_BASE_URL` in `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`.
 5. `https://api.anthropic.com`.
 
-## Session detection
+## What gets recorded
+
+- Byte-preserving request and response bodies. Codex requests with `Content-Encoding: zstd` remain byte-identical on disk; decoding is read-only and used for parsing and display only.
+- Sequence, arrival time, offset, and length for every request and response chunk.
+- SSE events parsed incrementally across arbitrary chunk boundaries.
+- The complete streamed response, reconstructed through official SDK methods:
+  - Anthropic: `MessageStream.fromReadableStream(...).finalMessage()`
+  - OpenAI: `ResponseStream.fromReadableStream(...).finalResponse()`
+- Session grouping through Claude Session Headers, OpenAI Conversations, and Response Chains.
+
+> A Tracelet chunk is delivered through a Node.js Stream `data` event and is not guaranteed to match a single TCP packet or SSE event.
+
+### Session detection
 
 Claude Code detection order:
 
@@ -211,20 +220,9 @@ Example chunk index:
 
 The Dashboard uses `offset` and `length` to extract each original chunk from `response.bin`. Text and Base64 views are generated when queried, so chunk data is not stored twice. A zstd request is decoded only from its stored copy when metadata or Dashboard JSON is generated.
 
-## Dashboard
+## Development
 
-The Dashboard provides:
-
-- A `中文 / EN` switch that updates the interface immediately and persists the selection in `localStorage`.
-- Overview: model, protocol, status, duration, response size, and session source.
-- Complete Request: the full request decoded and parsed from `request.bin`, shown as a collapsible JSON tree.
-- Complete Response: the response object reconstructed by the official SDK, shown as a collapsible JSON tree.
-- JSON controls: expand all, expand two levels, collapse nodes, and copy the complete JSON.
-- SSE Events: parsed event type, timing, source chunk range, formatted data, and raw event text.
-
-If a stream is interrupted or the SDK cannot reconstruct the response, the Dashboard reports the reconstruction error while retaining the raw response and chunk records.
-
-## Project structure
+Project structure:
 
 ```text
 apps/
@@ -239,8 +237,6 @@ packages/
 └── storage/      # Raw files, JSONL writing, and queries
 tests/            # Unit and proxy integration tests
 ```
-
-## Development and verification
 
 Run in development mode:
 
