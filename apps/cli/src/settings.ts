@@ -2,13 +2,20 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { AgentType } from "@tracelet/shared";
 import { settingsFile } from "./paths.js";
 
 export type ProxyMode = "direct" | "system";
+export type ProxyTarget = AgentType | "all";
+
+export interface ProxyConfig {
+  mode: ProxyMode;
+}
 
 export interface Settings {
   proxy: {
-    mode: ProxyMode;
+    default: ProxyConfig;
+    agents: Record<string, ProxyConfig>;
   };
 }
 
@@ -33,27 +40,68 @@ async function readRaw(path: string): Promise<Record<string, unknown>> {
   }
 }
 
-/** 读取并校验 Tracelet 配置，缺省时使用直连。 */
-export async function loadSettings(path = settingsFile()): Promise<Settings> {
-  const value = await readRaw(path);
-  const proxy = value.proxy;
-  if (proxy !== undefined && !isObject(proxy)) {
+/** 读取并校验单个代理配置。 */
+function readProxy(value: unknown, name: string): ProxyConfig {
+  if (!isObject(value) || (value.mode !== "direct" && value.mode !== "system")) {
+    throw new Error(`Invalid proxy mode: ${name}`);
+  }
+  return { mode: value.mode };
+}
+
+/** 将原始对象转换为按 Agent 区分的 Tracelet 配置。 */
+function parseSettings(value: Record<string, unknown>, path: string): Settings {
+  if (value.proxy !== undefined && !isObject(value.proxy)) {
     throw new Error(`Invalid proxy settings: ${path}`);
   }
 
-  const mode = isObject(proxy) ? proxy.mode : undefined;
-  if (mode !== undefined && mode !== "direct" && mode !== "system") {
-    throw new Error(`Invalid proxy mode: ${String(mode)}`);
+  const proxy = isObject(value.proxy) ? value.proxy : {};
+  const defaultConfig = proxy.default === undefined
+    ? { mode: "direct" as const }
+    : readProxy(proxy.default, "default");
+  if (proxy.agents !== undefined && !isObject(proxy.agents)) {
+    throw new Error(`Invalid agent proxy settings: ${path}`);
   }
 
-  return { proxy: { mode: mode ?? "direct" } };
+  const agents: Record<string, ProxyConfig> = {};
+  if (isObject(proxy.agents)) {
+    for (const [agentId, config] of Object.entries(proxy.agents)) {
+      agents[agentId] = readProxy(config, agentId);
+    }
+  }
+
+  return { proxy: { default: defaultConfig, agents } };
 }
 
-/** 保存代理模式，同时保留配置文件中的其他字段。 */
-export async function saveProxy(mode: ProxyMode, path = settingsFile()): Promise<void> {
+/** 读取并校验 Tracelet 配置，缺省 Agent 使用默认直连配置。 */
+export async function loadSettings(path = settingsFile()): Promise<Settings> {
+  return parseSettings(await readRaw(path), path);
+}
+
+/** 返回指定 Agent 最终使用的代理模式。 */
+export function proxyMode(settings: Settings, agentId: string): ProxyMode {
+  return settings.proxy.agents[agentId]?.mode ?? settings.proxy.default.mode;
+}
+
+/** 保存单个或全部 Agent 的代理模式，同时保留其他顶层配置。 */
+export async function saveProxy(target: ProxyTarget, mode: ProxyMode, path = settingsFile()): Promise<void> {
   const value = await readRaw(path);
-  const proxy = isObject(value.proxy) ? value.proxy : {};
-  const next = { ...value, proxy: { ...proxy, mode } };
+  const current = parseSettings(value, path);
+  const agents = { ...current.proxy.agents };
+  let defaultConfig = current.proxy.default;
+
+  if (target === "all") {
+    // 全部 Agent 使用新的默认值，并移除已有的单独覆盖项。
+    defaultConfig = { mode };
+    for (const agentId of Object.keys(agents)) {
+      delete agents[agentId];
+    }
+  } else if (mode === defaultConfig.mode) {
+    delete agents[target];
+  } else {
+    agents[target] = { mode };
+  }
+
+  const next = { ...value, proxy: { default: defaultConfig, agents } };
 
   // settings.json 独立于记录目录，始终保存在当前用户的 Tracelet 目录下。
   await mkdir(dirname(path), { recursive: true });

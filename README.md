@@ -60,7 +60,7 @@ tracelet dashboard
 Other available commands:
 
 ```bash
-tracelet proxy       # Turn system proxy usage on or off
+tracelet proxy       # Configure system proxy usage for each Agent
 tracelet clear       # Clear all recorded sessions
 tracelet clear --yes # Clear without confirmation
 ```

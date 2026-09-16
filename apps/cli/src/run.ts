@@ -5,7 +5,7 @@ import { makeId, nowIso } from "@tracelet/shared";
 import { TraceletServer } from "@tracelet/server";
 import { agents } from "./agents.js";
 import { dashboardDir, dataDir } from "./paths.js";
-import { loadSettings } from "./settings.js";
+import { loadSettings, proxyMode } from "./settings.js";
 import { spawnAgent } from "./spawn.js";
 import { systemProxy } from "./system-proxy.js";
 
@@ -22,9 +22,10 @@ export async function runAgent(agentId: AgentType, args: string[], options: RunO
   }
 
   const settings = await loadSettings();
+  const mode = proxyMode(settings, agentId);
   // 仅在启用且成功发现系统代理时传递代理地址，否则保持原有直连行为。
-  const proxy = settings.proxy.mode === "system" ? await systemProxy() : undefined;
-  if (settings.proxy.mode === "system" && !proxy) {
+  const proxy = mode === "system" ? await systemProxy() : undefined;
+  if (mode === "system" && !proxy) {
     console.warn("System proxy not found. Using a direct connection.");
   }
 

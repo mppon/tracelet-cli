@@ -60,7 +60,7 @@ tracelet dashboard
 其他命令：
 
 ```bash
-tracelet proxy       # 开启或关闭系统代理
+tracelet proxy       # 分别配置每个 Agent 是否使用系统代理
 tracelet clear       # 清除全部会话记录
 tracelet clear --yes # 跳过确认并清除记录
 ```

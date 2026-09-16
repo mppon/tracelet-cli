@@ -7,7 +7,13 @@ import { agents } from "./agents.js";
 import { clearData } from "./clear.js";
 import { dataDir } from "./paths.js";
 import { runAgent, runDashboard, type RunOptions } from "./run.js";
-import { loadSettings, saveProxy, type ProxyMode } from "./settings.js";
+import {
+  loadSettings,
+  proxyMode,
+  saveProxy,
+  type ProxyMode,
+  type ProxyTarget,
+} from "./settings.js";
 
 /** 将端口字符串转换为合法整数。 */
 function parsePort(value: string): number {
@@ -78,13 +84,28 @@ async function clearRecords(program: Command, yes: boolean): Promise<void> {
   console.log(`All Tracelet records cleared: ${root}`);
 }
 
-/** 通过 On/Off 菜单配置 Tracelet 是否使用系统代理。 */
+/** 通过 Agent 和 On/Off 菜单配置系统代理。 */
 async function configureProxy(): Promise<void> {
   if (!process.stdin.isTTY) {
     throw new Error("The proxy command requires an interactive terminal.");
   }
 
-  const current = (await loadSettings()).proxy.mode;
+  const settings = await loadSettings();
+  const target = await select<ProxyTarget>({
+    message: "Select an agent to configure",
+    choices: [
+      {
+        name: `Claude Code (${proxyMode(settings, "claude") === "system" ? "On" : "Off"})`,
+        value: "claude",
+      },
+      {
+        name: `Codex (${proxyMode(settings, "codex") === "system" ? "On" : "Off"})`,
+        value: "codex",
+      },
+      { name: "All agents", value: "all" },
+    ],
+  });
+  const current = target === "all" ? settings.proxy.default.mode : proxyMode(settings, target);
   const mode = await select<ProxyMode>({
     message: "Use the system proxy for upstream requests?",
     choices: [
@@ -93,8 +114,9 @@ async function configureProxy(): Promise<void> {
     ],
     default: current,
   });
-  await saveProxy(mode);
-  console.log(mode === "system" ? "System proxy enabled." : "System proxy disabled.");
+  await saveProxy(target, mode);
+  const label = target === "all" ? "all agents" : agents[target].label;
+  console.log(`System proxy ${mode === "system" ? "enabled" : "disabled"} for ${label}.`);
 }
 
 /** 创建并配置 Tracelet Commander 程序。 */
