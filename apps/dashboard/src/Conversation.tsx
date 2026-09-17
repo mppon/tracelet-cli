@@ -344,7 +344,7 @@ export function Conversation({
 
       {view === "requests" ? (
         <Requests exchanges={session.exchanges} selected={selectedExchange} onSelect={onExchange} />
-      ) : loading ? (
+      ) : loading && !conversation ? (
         <div className="workspace-loading"><span className="loader" />{messages.conversation.loading}</div>
       ) : (
         <div className="conversation-view">

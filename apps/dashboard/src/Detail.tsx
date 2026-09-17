@@ -198,7 +198,7 @@ export function Detail({ detail, loading }: DetailProps) {
   const { messages } = useI18n();
   const [tab, setTab] = useState<Tab>("overview");
 
-  if (loading) {
+  if (loading && !detail) {
     return <aside className="detail empty-state"><span className="loader" />{messages.detail.loading}</aside>;
   }
   if (!detail) {
