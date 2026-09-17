@@ -84,7 +84,7 @@ function isContext(text: string): boolean {
     || value.startsWith("# AGENTS.md instructions");
 }
 
-/** 判断请求是否为标题、摘要等 Agent 内部任务。 */
+/** 在缺少结构化元数据时，判断 Claude 请求是否为内部任务。 */
 function isInternalText(text: string): boolean {
   return text.includes("Write the title in the predominant language")
     || text.includes("Generate a concise, single-line task title")
@@ -257,14 +257,15 @@ function turnMeta(exchange: ExchangeDetail): TurnMeta {
   const metadata = record(json(encoded));
   const source = string(client?.thread_source) ?? string(metadata?.thread_source);
   const id = string(client?.turn_id) ?? string(metadata?.turn_id);
-  const texts = requestItems(exchange)
-    .filter((item) => item?.kind === "message")
-    .map((item) => item?.text ?? "")
-    .join("\n");
+  const claudeInternal = exchange?.meta?.protocol === "anthropic"
+    && isInternalText(requestItems(exchange)
+      .filter((item) => item?.kind === "message")
+      .map((item) => item?.text ?? "")
+      .join("\n"));
 
   return {
     ...(id ? { id } : {}),
-    internal: source === "system" || isInternalText(texts),
+    internal: source === "system" || claudeInternal,
   };
 }
 

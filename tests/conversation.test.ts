@@ -130,6 +130,36 @@ describe("Conversation builder", () => {
     expect(result.turns[0]?.internal).toBe(true);
   });
 
+  /** 验证 Codex 只使用结构化来源判断内部任务，不扫描历史消息文字。 */
+  it("仅根据 thread_source 识别 Codex 内部任务", () => {
+    const historicalPrompt = {
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text: "Generate a concise, single-line task title" }],
+    };
+    const userHeaders = {
+      "x-codex-turn-metadata": JSON.stringify({ turn_id: "turn-user", thread_source: "user" }),
+    };
+    const systemHeaders = {
+      "x-codex-turn-metadata": JSON.stringify({ turn_id: "turn-system", thread_source: "system" }),
+    };
+    const response = {
+      output: [{
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "完成" }],
+      }],
+    };
+    const userExchange = exchange("ex1", "openai", { input: [historicalPrompt] }, response, userHeaders);
+    const systemExchange = exchange("ex2", "openai", { input: [historicalPrompt] }, response, systemHeaders);
+
+    const userResult = buildConversation(session("openai", [userExchange]), [userExchange]);
+    const systemResult = buildConversation(session("openai", [systemExchange]), [systemExchange]);
+
+    expect(userResult.turns[0]?.internal).toBe(false);
+    expect(systemResult.turns[0]?.internal).toBe(true);
+  });
+
   /** 验证同一 Codex turn_id 的多次请求会合并为一个 Turn。 */
   it("还原 Codex Turn 和工具结果", () => {
     const metadata = { "x-codex-turn-metadata": JSON.stringify({ turn_id: "turn-1", thread_source: "cli" }) };
