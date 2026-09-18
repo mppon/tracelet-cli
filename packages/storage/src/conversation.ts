@@ -5,6 +5,7 @@ import type {
   ConversationItem,
   ConversationKind,
   ConversationRole,
+  ConversationSystemPrompt,
   ConversationTurn,
   ExchangeDetail,
   HeaderValue,
@@ -102,6 +103,40 @@ function contentText(value: unknown): string | undefined {
     .filter((item) => item?.type === "text" || item?.type === "input_text" || item?.type === "output_text")
     .map((item) => string(item?.text))
     .filter((text): text is string => typeof text === "string" && !isContext(text));
+  return string(parts.join("\n\n"));
+}
+
+/** 从系统提示词的字符串或内容块中提取完整文本。 */
+function promptText(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return string(value);
+  }
+
+  const parts = array(value)
+    .map((item) => record(item))
+    .filter((item) => item?.type === "text" || item?.type === "input_text" || item?.type === "output_text")
+    .map((item) => string(item?.text))
+    .filter((text): text is string => Boolean(text));
+  return string(parts.join("\n\n"));
+}
+
+/** 从 Claude 或 OpenAI 请求中提取系统与 Developer 提示词。 */
+function systemText(exchange: ExchangeDetail): string | undefined {
+  const body = record(exchange?.request);
+  const parts = [promptText(body?.system), promptText(body?.instructions)]
+    .filter((text): text is string => Boolean(text));
+
+  for (const raw of array(body?.input)) {
+    const item = record(raw);
+    if (item?.type !== "message" || (item?.role !== "system" && item?.role !== "developer")) {
+      continue;
+    }
+    const text = promptText(item?.content);
+    if (text) {
+      parts.push(text);
+    }
+  }
+
   return string(parts.join("\n\n"));
 }
 
@@ -312,6 +347,7 @@ class Builder {
   private readonly ids = new Set<string>();
   private readonly seen = new Set<string>();
   private readonly max = new Map<string, number>();
+  private systemPrompt?: ConversationSystemPrompt;
   private current?: ConversationTurn;
   private turnSeq = 0;
   private itemSeq = 0;
@@ -323,6 +359,13 @@ class Builder {
 
   /** 将一次 Exchange 合并到当前会话。 */
   add(exchange: ExchangeDetail): void {
+    const prompt = systemText(exchange);
+    if (prompt && !this.systemPrompt) {
+      this.systemPrompt = { text: prompt, exchangeIds: [exchange.meta.id] };
+    } else if (prompt && this.systemPrompt?.text === prompt) {
+      this.link(this.systemPrompt.exchangeIds, exchange.meta.id);
+    }
+
     const meta = turnMeta(exchange);
     const input = this.snapshot(requestItems(exchange));
     const userIndex = lastUser(input);
@@ -353,6 +396,7 @@ class Builder {
       sessionId: this.session.id,
       protocol: this.session.protocol,
       ...(model ? { model } : {}),
+      ...(this.systemPrompt ? { systemPrompt: this.systemPrompt } : {}),
       startedAt: this.session.startedAt,
       ...(this.session.endedAt ? { endedAt: this.session.endedAt } : {}),
       exchangeIds: this.session.exchanges.map((item) => item.id),

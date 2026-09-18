@@ -30,6 +30,7 @@ export interface Messages {
     conversation: string;
     requests: string;
     all: string;
+    system: string;
     messages: string;
     tools: string;
     reasoning: string;
@@ -37,6 +38,7 @@ export interface Messages {
     internal: string;
     user: string;
     assistant: string;
+    systemPrompt: string;
     turns: string;
     exchanges: string;
     toolCall: string;

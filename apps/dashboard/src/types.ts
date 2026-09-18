@@ -68,10 +68,16 @@ export interface ConversationTurn {
   items: ConversationItem[];
 }
 
+export interface ConversationSystemPrompt {
+  text: string;
+  exchangeIds: string[];
+}
+
 export interface ConversationDetail {
   sessionId: string;
   protocol: "anthropic" | "openai";
   model?: string;
+  systemPrompt?: ConversationSystemPrompt;
   startedAt: string;
   endedAt?: string;
   exchangeIds: string[];

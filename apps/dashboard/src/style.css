@@ -1651,7 +1651,8 @@ summary:focus-visible {
 }
 
 .tool-card,
-.reasoning-item {
+.reasoning-item,
+.system-prompt {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -1659,7 +1660,8 @@ summary:focus-visible {
 }
 
 .tool-card summary,
-.reasoning-item summary {
+.reasoning-item summary,
+.system-prompt summary {
   display: flex;
   min-height: 42px;
   align-items: center;
@@ -1672,7 +1674,8 @@ summary:focus-visible {
 }
 
 .tool-card summary::-webkit-details-marker,
-.reasoning-item summary::-webkit-details-marker {
+.reasoning-item summary::-webkit-details-marker,
+.system-prompt summary::-webkit-details-marker {
   display: none;
 }
 
@@ -1684,6 +1687,19 @@ summary:focus-visible {
   border-radius: 6px;
   color: var(--accent);
   background: var(--accent-soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 720;
+}
+
+.system-icon {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--message-ai);
+  background: var(--message-ai-soft);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 720;
 }
@@ -1707,7 +1723,8 @@ summary:focus-visible {
 }
 
 .tool-card .exchange-link,
-.reasoning-item .exchange-link {
+.reasoning-item .exchange-link,
+.system-prompt .exchange-link {
   margin-left: auto;
 }
 
@@ -1758,6 +1775,26 @@ summary:focus-visible {
   padding: 0 12px 13px;
   color: var(--text-soft);
   font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.system-prompt {
+  flex-shrink: 0;
+  width: min(90%, 820px);
+  margin: 0 auto 14px;
+  border-color: var(--message-ai-border);
+  background: color-mix(in srgb, var(--message-ai-soft) 54%, var(--surface));
+}
+
+.system-prompt pre {
+  overflow: auto;
+  max-height: 420px;
+  margin: 0;
+  padding: 12px 13px 14px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-soft);
+  font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -2032,7 +2069,8 @@ summary:focus-visible {
 
   .conversation-item,
   .tool-item,
-  .reasoning-item {
+  .reasoning-item,
+  .system-prompt {
     max-width: 96%;
     width: 96%;
   }

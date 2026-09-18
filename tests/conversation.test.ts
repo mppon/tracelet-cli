@@ -68,6 +68,54 @@ function session(protocol: Protocol, exchanges: ExchangeDetail[]): SessionSummar
 }
 
 describe("Conversation builder", () => {
+  /** 验证 Claude 顶层 system 内容会出现在会话顶部且不会重复。 */
+  it("提取 Claude 系统提示词", () => {
+    const system = [
+      { type: "text", text: "You are Claude Code." },
+      { type: "text", text: "Follow the project instructions." },
+    ];
+    const exchanges = [
+      exchange("ex1", "anthropic", {
+        system,
+        messages: [{ role: "user", content: "你好" }],
+      }, { id: "msg-1", role: "assistant", content: "你好" }),
+      exchange("ex2", "anthropic", {
+        system,
+        messages: [{ role: "user", content: "继续" }],
+      }, { id: "msg-2", role: "assistant", content: "好的" }),
+    ];
+
+    const result = buildConversation(session("anthropic", exchanges), exchanges);
+
+    expect(result.systemPrompt).toEqual({
+      text: "You are Claude Code.\n\nFollow the project instructions.",
+      exchangeIds: ["ex1", "ex2"],
+    });
+  });
+
+  /** 验证 Codex instructions 与 Developer 消息会合并为系统提示词。 */
+  it("提取 Codex 系统提示词", () => {
+    const current = exchange("ex1", "openai", {
+      instructions: "Base instructions",
+      input: [
+        {
+          type: "message",
+          role: "developer",
+          content: [{ type: "input_text", text: "Workspace instructions" }],
+        },
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "你好" }],
+        },
+      ],
+    }, { output: [] });
+
+    const result = buildConversation(session("openai", [current]), [current]);
+
+    expect(result.systemPrompt?.text).toBe("Base instructions\n\nWorkspace instructions");
+  });
+
   /** 验证 Claude 请求快照不会造成重复消息，工具结果会绑定原调用。 */
   it("还原 Claude 消息和工具调用", () => {
     const user = { role: "user", content: "请查看当前目录" };

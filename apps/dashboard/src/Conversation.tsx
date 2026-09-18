@@ -7,6 +7,7 @@ import type {
   ConversationDetail,
   ConversationItem,
   ConversationKind,
+  ConversationSystemPrompt,
   ConversationTurn,
   ExchangeSummary,
   SessionSummary,
@@ -14,7 +15,7 @@ import type {
 
 export type WorkspaceView = "conversation" | "requests";
 
-export type ItemFilter = "all" | ConversationKind;
+export type ItemFilter = "all" | "system" | ConversationKind;
 
 interface ConversationProps {
   session: SessionSummary | undefined;
@@ -102,6 +103,30 @@ function MessageItem({
         <div className="message-bubble">{item?.text}</div>
       </div>
     </article>
+  );
+}
+
+/** 在会话顶部展示默认收起的系统提示词。 */
+function SystemPrompt({
+  prompt,
+  selected,
+  onSelect,
+}: {
+  prompt: ConversationSystemPrompt;
+  selected: string | undefined;
+  /** 选择系统提示词来源的 Exchange。 */
+  onSelect(id: string): void;
+}) {
+  const { messages } = useI18n();
+  return (
+    <details className="system-prompt">
+      <summary>
+        <span className="system-icon">S</span>
+        <strong>{messages.conversation.systemPrompt}</strong>
+        <ExchangeLink ids={prompt?.exchangeIds ?? []} selected={selected} onSelect={onSelect} />
+      </summary>
+      <pre>{prompt?.text}</pre>
+    </details>
   );
 }
 
@@ -201,7 +226,9 @@ function Turn({
   onSelect(id: string): void;
 }) {
   const { messages } = useI18n();
-  const items = filter === "all" ? turn?.items : turn?.items?.filter((item) => item?.kind === filter);
+  const items = filter === "all"
+    ? turn?.items
+    : turn?.items?.filter((item) => item?.kind === filter);
   if (!items?.length) {
     return null;
   }
@@ -268,6 +295,7 @@ export function Conversation({
   const { locale, messages } = useI18n();
   const filters: Array<{ id: ItemFilter; label: string }> = [
     { id: "all", label: messages.conversation.all },
+    { id: "system", label: messages.conversation.system },
     { id: "message", label: messages.conversation.messages },
     { id: "tool", label: messages.conversation.tools },
     { id: "reasoning", label: messages.conversation.reasoning },
@@ -276,7 +304,10 @@ export function Conversation({
     () => conversation?.turns?.filter((turn) => showInternal || !turn?.internal) ?? [],
     [conversation, showInternal],
   );
-  const hasItems = turns.some((turn) => turn?.items?.some((item) => filter === "all" || item?.kind === filter));
+  const hasItems = filter === "system"
+    ? Boolean(conversation?.systemPrompt)
+    : turns.some((turn) => turn?.items?.some((item) => filter === "all" || item?.kind === filter))
+      || (filter === "all" && Boolean(conversation?.systemPrompt));
 
   if (!session) {
     return (
@@ -348,6 +379,13 @@ export function Conversation({
         <div className="workspace-loading"><span className="loader" />{messages.conversation.loading}</div>
       ) : (
         <div className="conversation-view">
+          {(filter === "all" || filter === "system") && conversation?.systemPrompt ? (
+            <SystemPrompt
+              prompt={conversation?.systemPrompt}
+              selected={selectedExchange}
+              onSelect={onExchange}
+            />
+          ) : null}
           {!hasItems ? <div className="conversation-empty">{messages.conversation.noItems}</div> : null}
           {turns.map((turn) => (
             <Turn
