@@ -1279,8 +1279,16 @@ summary:focus-visible {
   gap: 7px;
 }
 
+.session-card-head .provider {
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .session-card-head time {
   margin-left: auto;
+  flex-shrink: 0;
   color: var(--text-muted);
   font-size: 11px;
 }

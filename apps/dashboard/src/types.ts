@@ -37,6 +37,7 @@ export interface ExchangeSummary {
 export interface SessionSummary {
   id: string;
   protocol: "anthropic" | "openai";
+  agentLabel?: string;
   startedAt: string;
   endedAt?: string;
   internal?: boolean;

@@ -16,7 +16,7 @@ export const en: Messages = {
   sidebar: {
     subtitle: "Local LLM traces",
     sessions: "Sessions",
-    noRecords: "No records yet. Start Claude Code or Codex through Tracelet first.",
+    noRecords: "No records yet. Start an agent through Tracelet first.",
     unknownModel: "Unknown model",
     complete: "Complete",
     recording: "Recording",

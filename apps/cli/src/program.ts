@@ -1,10 +1,10 @@
 /** 本文件负责定义 Commander 命令和无参数时的交互菜单。 */
 
 import { confirm, select } from "@inquirer/prompts";
-import type { AgentType } from "@tracelet/shared";
 import { Command, Option } from "commander";
-import { agents } from "./agents.js";
+import { agents, customAdapter } from "./agents.js";
 import { clearData } from "./clear.js";
+import { manageAgents } from "./custom-menu.js";
 import { dataDir } from "./paths.js";
 import { runAgent, runDashboard, type RunOptions } from "./run.js";
 import {
@@ -36,29 +36,49 @@ function getOptions(program: Command): RunOptions {
 /** 展示可用 agent 菜单并运行用户选择项。 */
 async function interactive(program: Command): Promise<void> {
   if (!process.stdin.isTTY) {
-    throw new Error("Use tracelet claude or tracelet codex in a non-interactive environment.");
+    throw new Error("Use tracelet claude, tracelet codex, or tracelet run <id> in a non-interactive environment.");
   }
 
-  const [claudeReady, codexReady] = await Promise.all([
-    agents.claude.detect(),
-    agents.codex.detect(),
-  ]);
-  const agent = await select<AgentType>({
-    message: "Select an agent to trace",
-    choices: [
-      {
-        name: "Claude Code",
-        value: "claude",
-        ...(!claudeReady ? { disabled: "claude command not found" } : {}),
-      },
-      {
-        name: "Codex",
-        value: "codex",
-        ...(!codexReady ? { disabled: "codex command not found" } : {}),
-      },
-    ],
-  });
-  process.exitCode = await runAgent(agent, [], getOptions(program));
+  for (;;) {
+    const settings = await loadSettings();
+    const [claudeReady, codexReady] = await Promise.all([
+      agents.claude.detect(),
+      agents.codex.detect(),
+    ]);
+    const custom = await Promise.all(Object.entries(settings.customAgents).map(async ([id, config]) => ({
+      name: config.label,
+      value: id,
+      ...(!(await customAdapter(id, config).detect())
+        ? { disabled: `${config.command} command not found` } : {}),
+    })));
+    const agent = await select<string>({
+      message: "Select an agent to trace",
+      choices: [
+        {
+          name: "Claude Code",
+          value: "claude",
+          ...(!claudeReady ? { disabled: "claude command not found" } : {}),
+        },
+        {
+          name: "Codex",
+          value: "codex",
+          ...(!codexReady ? { disabled: "codex command not found" } : {}),
+        },
+        ...custom,
+        { name: "Manage custom agents...", value: "manage" },
+      ],
+    });
+    if (agent === "manage") {
+      const launch = await manageAgents();
+      if (launch) {
+        process.exitCode = await runAgent(launch, [], getOptions(program));
+        return;
+      }
+      continue;
+    }
+    process.exitCode = await runAgent(agent, [], getOptions(program));
+    return;
+  }
 }
 
 /** 确认后清除当前数据目录中的全部历史记录。 */
@@ -103,6 +123,10 @@ async function configureProxy(): Promise<void> {
         value: "codex",
       },
       { name: "All agents", value: "all" },
+      ...Object.entries(settings.customAgents).map(([id, agent]) => ({
+        name: `${agent.label} (${proxyMode(settings, id) === "system" ? "On" : "Off"})`,
+        value: id,
+      })),
     ],
   });
   const current = target === "all" ? settings.proxy.default.mode : proxyMode(settings, target);
@@ -115,7 +139,9 @@ async function configureProxy(): Promise<void> {
     default: current,
   });
   await saveProxy(target, mode);
-  const label = target === "all" ? "all agents" : agents[target].label;
+  const label = target === "all" ? "all agents"
+    : target === "claude" || target === "codex" ? agents[target].label
+      : settings.customAgents[target]?.label ?? target;
   console.log(`System proxy ${mode === "system" ? "enabled" : "disabled"} for ${label}.`);
 }
 
@@ -124,7 +150,7 @@ export function createProgram(): Command {
   const program = new Command();
   program
     .name("tracelet")
-    .description("Record LLM requests and streaming responses from Claude Code and Codex")
+    .description("Record LLM requests and streaming responses from built-in and custom agents")
     .version("0.1.0")
     .enablePositionalOptions()
     .addOption(new Option("-p, --port <port>", "Local server port").default(4318).argParser(parsePort))
@@ -141,6 +167,23 @@ export function createProgram(): Command {
         process.exitCode = await runAgent(agentId, args, getOptions(program));
       });
   }
+
+  program
+    .command("agent")
+    .description("Add, edit, or delete custom agents")
+    .action(async () => {
+      const launch = await manageAgents();
+      if (launch) process.exitCode = await runAgent(launch, [], getOptions(program));
+    });
+
+  program
+    .command("run <id> [args...]")
+    .description("Start and trace a custom agent by ID")
+    .allowUnknownOption()
+    .passThroughOptions()
+    .action(async (id: string, args: string[]) => {
+      process.exitCode = await runAgent(id, args, getOptions(program));
+    });
 
   program
     .command("dashboard")

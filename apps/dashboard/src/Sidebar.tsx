@@ -39,7 +39,7 @@ function SessionCard({
   onSelect(id: string): void;
 }) {
   const { locale, messages } = useI18n();
-  const provider = session.protocol === "anthropic" ? "Claude" : "Codex";
+  const provider = session?.agentLabel ?? (session?.protocol === "anthropic" ? "Claude" : "Codex");
   return (
     <button
       className={active ? "session-card active" : "session-card"}

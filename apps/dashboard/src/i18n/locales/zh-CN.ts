@@ -16,7 +16,7 @@ export const zhCN: Messages = {
   sidebar: {
     subtitle: "本地 LLM 追踪",
     sessions: "会话",
-    noRecords: "暂无记录，请先通过 Tracelet 启动 Claude Code 或 Codex。",
+    noRecords: "暂无记录，请先通过 Tracelet 启动 Agent。",
     unknownModel: "未知模型",
     complete: "已完成",
     recording: "记录中",

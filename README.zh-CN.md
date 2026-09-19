@@ -2,13 +2,13 @@
 
 # Tracelet
 
-在本地记录并查看 Claude Code 和 Codex 的 LLM 通信。
+在本地记录并查看 Claude Code、Codex 和自定义 Agent 的 LLM 通信。
 
 [English](./README.md)
 
 ## 简介
 
-Tracelet 是一个使用 TypeScript 编写的命令行工具。它通过本地 HTTP 代理启动 Claude Code 或 Codex，记录 Agent 与 LLM 之间的请求和流式响应，不修改请求内容，也不永久修改 Agent 的配置。
+Tracelet 是一个使用 TypeScript 编写的命令行工具。它通过本地 HTTP 代理启动 Agent，记录 Agent 与 LLM 之间的请求和流式响应，不修改请求内容，也不永久修改 Agent 的配置。
 
 内置 Dashboard 可以根据记录还原完整会话，并查看消息、Reasoning、工具调用、完整请求与响应以及 SSE 事件。记录默认保存在 `~/.tracelet/data`。
 
@@ -16,7 +16,7 @@ Tracelet 是一个使用 TypeScript 编写的命令行工具。它通过本地 H
 
 ## 安装
 
-Tracelet 要求 Node.js 22 或更高版本，并且本机已安装并登录 `claude` 或 `codex`。
+Tracelet 要求 Node.js 22 或更高版本。使用内置 Agent 时，本机还需安装并登录 `claude` 或 `codex`。
 
 全局安装：
 
@@ -47,6 +47,16 @@ tracelet codex
 tracelet codex -- --model gpt-5.6-sol
 ```
 
+要采集其他 Agent，在 `tracelet` 主菜单选择 **Manage custom agents...**，或运行 `tracelet agent`。新增时填写可执行命令、默认参数、协议（Anthropic Messages 或 OpenAI Responses）和原始上游地址。Tracelet 默认通过 `ANTHROPIC_BASE_URL` 或 `OPENAI_BASE_URL` 传入本地 Base URL；也可以改用其他环境变量或命令参数模板。如果选定的环境变量已有值，原始上游地址会优先以该值作为默认值。目标 Agent 必须支持选定的协议和 Base URL 覆盖方式。
+
+保存后会显示生成的 ID。之后可以从主菜单启动，也可以直接运行：
+
+```bash
+tracelet run custom-my-agent -- --model example
+```
+
+同一菜单也支持编辑和删除自定义 Agent。配置保存在 `~/.tracelet/settings.json`；删除配置不会删除已有记录。
+
 启动后，命令行会输出 Dashboard 地址。如果只想查看已有记录而不启动 Agent，可以运行：
 
 ```bash
@@ -61,6 +71,7 @@ tracelet dashboard
 
 ```bash
 tracelet proxy       # 分别配置每个 Agent 是否使用系统代理
+tracelet agent       # 管理自定义 Agent
 tracelet clear       # 清除全部会话记录
 tracelet clear --yes # 跳过确认并清除记录
 ```

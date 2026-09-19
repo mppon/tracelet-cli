@@ -2,13 +2,13 @@
 
 # Tracelet
 
-Trace and inspect Claude Code and Codex LLM traffic locally.
+Trace and inspect LLM traffic from Claude Code, Codex, and custom agents locally.
 
 [简体中文](./README.zh-CN.md)
 
 ## Introduction
 
-Tracelet is a TypeScript CLI that launches Claude Code or Codex through a local HTTP proxy and records the requests and streaming responses exchanged with the LLM. It does not change request payloads or permanently modify either Agent's configuration.
+Tracelet is a TypeScript CLI that launches agents through a local HTTP proxy and records requests and streaming responses exchanged with the LLM. It does not change request payloads or permanently modify an agent's configuration.
 
 The built-in Dashboard reconstructs conversations from the recorded traffic and lets you inspect messages, reasoning, tool calls, complete requests and responses, and SSE events. Records are stored locally in `~/.tracelet/data` by default.
 
@@ -16,7 +16,7 @@ The built-in Dashboard reconstructs conversations from the recorded traffic and 
 
 ## Installation
 
-Tracelet requires Node.js 22 or later and an installed, authenticated `claude` or `codex` command.
+Tracelet requires Node.js 22 or later. To use a built-in agent, install and authenticate its `claude` or `codex` command.
 
 Install the CLI globally:
 
@@ -47,6 +47,16 @@ tracelet codex
 tracelet codex -- --model gpt-5.6-sol
 ```
 
+To trace another agent, choose **Manage custom agents...** from `tracelet`, or run `tracelet agent`. Add its executable, default arguments, protocol (Anthropic Messages or OpenAI Responses), and original upstream URL. Tracelet passes its local Base URL through `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` by default; you can choose another environment variable or an argument template if the agent requires it. The upstream prompt defaults to that variable's current value when available. The agent must support the selected protocol and Base URL override.
+
+The generated ID is shown after saving. Launch it from the main menu or directly:
+
+```bash
+tracelet run custom-my-agent -- --model example
+```
+
+The same menu supports editing and deleting custom agents. Configurations live in `~/.tracelet/settings.json`; deleting one keeps its recorded history.
+
 The CLI prints the Dashboard URL after startup. To inspect existing records without launching an Agent, run:
 
 ```bash
@@ -61,6 +71,7 @@ Other available commands:
 
 ```bash
 tracelet proxy       # Configure system proxy usage for each Agent
+tracelet agent       # Manage custom agents
 tracelet clear       # Clear all recorded sessions
 tracelet clear --yes # Clear without confirmation
 ```

@@ -7,6 +7,7 @@ import { delimiter, join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { AgentType, Protocol } from "@tracelet/shared";
+import type { CustomAgent } from "./settings.js";
 
 const exec = promisify(execFile);
 const codexProvider = "tracelet";
@@ -18,7 +19,7 @@ export interface LaunchInfo {
 }
 
 export interface AgentAdapter {
-  id: AgentType;
+  id: string;
   label: string;
   command: string;
   protocol: Protocol;
@@ -46,18 +47,48 @@ function launchEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
 
 /** 检查命令是否存在于当前 PATH。 */
 async function hasBin(command: string): Promise<boolean> {
-  const paths = process.env.PATH?.split(delimiter) ?? [];
+  const paths = command.includes("/") || command.includes("\\")
+    ? [""] : process.env.PATH?.split(delimiter) ?? [];
+  const names = process.platform === "win32" && !/\.[^\\/]+$/.test(command)
+    ? [command, ...(process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((ext) => `${command}${ext}`)]
+    : [command];
 
   for (const path of paths) {
-    try {
-      await access(join(path, command), constants.X_OK);
-      return true;
-    } catch {
-      // 当前目录未命中时继续检查 PATH 的下一项。
+    for (const name of names) {
+      try {
+        await access(join(path, name), constants.X_OK);
+        return true;
+      } catch {
+        // 当前候选项未命中时继续检查 PATH 或 Windows 扩展名。
+      }
     }
   }
 
   return false;
+}
+
+/** 依据保存的配置创建仅影响当前子进程的自定义 Agent 启动器。 */
+export function customAdapter(id: string, config: CustomAgent): AgentAdapter {
+  return {
+    id,
+    label: config.label,
+    command: config.command,
+    protocol: config.protocol,
+    detect: () => hasBin(config.command),
+    upstream: async () => config.upstream,
+    launch: (proxyUrl, args) => {
+      const env = launchEnv();
+      const inject = config.inject.type === "env" ? []
+        : config.inject.args.map((arg) => arg.replaceAll("{baseUrl}", proxyUrl));
+      if (config.inject.type === "env") {
+        // 未指定变量名时使用协议的标准 Base URL 环境变量。
+        const name = config.inject.name ?? (config.protocol === "anthropic"
+          ? "ANTHROPIC_BASE_URL" : "OPENAI_BASE_URL");
+        env[name] = proxyUrl;
+      }
+      return { command: config.command, args: [...inject, ...config.args, ...args], env };
+    },
+  };
 }
 
 /** 判断 Codex 当前是否使用 ChatGPT 登录。 */

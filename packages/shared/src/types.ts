@@ -12,7 +12,8 @@ export type HeaderMap = Record<string, HeaderValue>;
 
 export interface RunMeta {
   id: string;
-  agent: AgentType;
+  agent: string;
+  agentLabel?: string;
   cwd: string;
   command: string;
   startedAt: string;
@@ -107,6 +108,7 @@ export interface ExchangeSummary {
 export interface SessionSummary {
   id: string;
   protocol: Protocol;
+  agentLabel?: string;
   startedAt: string;
   endedAt?: string;
   internal?: boolean;

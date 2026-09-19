@@ -10,6 +10,7 @@ import type {
   ExchangeMeta,
   ExchangeSummary,
   ConversationDetail,
+  RunMeta,
   SessionSummary,
   SseRow,
 } from "@tracelet/shared";
@@ -19,6 +20,7 @@ import { buildConversation } from "./conversation.js";
 interface StoredMeta {
   dir: string;
   meta: ExchangeMeta;
+  agentLabel?: string;
 }
 
 /** 判断一次记录是否属于 Dashboard 需要展示的模型交互。 */
@@ -83,12 +85,21 @@ async function scan(root: string): Promise<StoredMeta[]> {
   for (const date of await readDirs(runsRoot)) {
     const dateDir = join(runsRoot, date);
     for (const run of await readDirs(dateDir)) {
+      const runDir = join(dateDir, run);
+      let agentLabel: string | undefined;
+      try {
+        const info = await readJson<RunMeta>(join(runDir, "run.json"));
+        agentLabel = info.agentLabel ?? (info.agent === "claude" ? "Claude Code"
+          : info.agent === "codex" ? "Codex" : info.agent);
+      } catch {
+        // 旧记录或损坏的 run 元数据仍允许按协议展示。
+      }
       const exchangesDir = join(dateDir, run, "exchanges");
       for (const exchange of await readDirs(exchangesDir)) {
         const dir = join(exchangesDir, exchange);
         try {
           const meta = await readJson<ExchangeMeta>(join(dir, "meta.json"));
-          result.push({ dir, meta: normalizeMeta(meta) });
+          result.push({ dir, meta: normalizeMeta(meta), ...(agentLabel ? { agentLabel } : {}) });
         } catch {
           // 未完成的损坏记录不进入 Dashboard 列表。
         }
@@ -139,6 +150,7 @@ export async function listSessions(root: string): Promise<SessionSummary[]> {
     groups.set(item.meta.sessionId, {
       id: item.meta.sessionId,
       protocol: item.meta.protocol,
+      ...(item.agentLabel ? { agentLabel: item.agentLabel } : {}),
       startedAt: item.meta.startedAt,
       ...(item.meta.completedAt ? { endedAt: item.meta.completedAt } : {}),
       ...(isInternal(item.meta) ? { internal: true } : {}),

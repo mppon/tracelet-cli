@@ -1,9 +1,9 @@
 /** 本文件负责组合本地服务、运行记录与 agent 子进程生命周期。 */
 
-import type { AgentType, RunMeta } from "@tracelet/shared";
+import type { RunMeta } from "@tracelet/shared";
 import { makeId, nowIso } from "@tracelet/shared";
 import { TraceletServer } from "@tracelet/server";
-import { agents } from "./agents.js";
+import { agents, customAdapter } from "./agents.js";
 import { dashboardDir, dataDir } from "./paths.js";
 import { loadSettings, proxyMode } from "./settings.js";
 import { spawnAgent } from "./spawn.js";
@@ -15,13 +15,18 @@ export interface RunOptions {
 }
 
 /** 启动 Tracelet 服务和指定 agent，并在退出前完成记录落盘。 */
-export async function runAgent(agentId: AgentType, args: string[], options: RunOptions): Promise<number> {
-  const adapter = agents[agentId];
+export async function runAgent(agentId: string, args: string[], options: RunOptions): Promise<number> {
+  const settings = await loadSettings();
+  const adapter = agentId === "claude" || agentId === "codex" ? agents[agentId]
+    : settings.customAgents[agentId] ? customAdapter(agentId, settings.customAgents[agentId])
+      : undefined;
+  if (!adapter) {
+    throw new Error(`Unknown agent: ${agentId}`);
+  }
   if (!(await adapter.detect())) {
     throw new Error(`${adapter.label} command not found: ${adapter.command}`);
   }
 
-  const settings = await loadSettings();
   const mode = proxyMode(settings, agentId);
   // 仅在启用且成功发现系统代理时传递代理地址，否则保持原有直连行为。
   const proxy = mode === "system" ? await systemProxy() : undefined;
@@ -38,6 +43,7 @@ export async function runAgent(agentId: AgentType, args: string[], options: RunO
   const run: RunMeta = {
     id: makeId("run"),
     agent: adapter.id,
+    agentLabel: adapter.label,
     cwd: process.cwd(),
     command: adapter.command,
     startedAt: nowIso(),

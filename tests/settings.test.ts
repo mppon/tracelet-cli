@@ -4,7 +4,16 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadSettings, proxyMode, saveProxy } from "../apps/cli/src/settings.js";
+import { loadSettings, proxyMode, removeAgent, saveAgent, saveProxy, type CustomAgent } from "../apps/cli/src/settings.js";
+
+const custom: CustomAgent = {
+  label: "My Agent",
+  command: "my-agent",
+  args: ["--profile", "work space"],
+  protocol: "openai",
+  upstream: "https://api.openai.com/v1",
+  inject: { type: "env" },
+};
 
 describe("Tracelet settings", () => {
   /** 验证配置文件不存在时默认使用直连。 */
@@ -47,5 +56,31 @@ describe("Tracelet settings", () => {
     expect(proxyMode(settings, "claude")).toBe("system");
     expect(proxyMode(settings, "codex")).toBe("system");
     expect(settings.proxy.agents).toEqual({});
+  });
+
+  /** 验证自定义 Agent 与其代理配置可独立持久化，删除时不清除其他设置。 */
+  it("saves and removes a custom agent", async () => {
+    const root = await mkdtemp(join(tmpdir(), "tracelet-settings-"));
+    const path = join(root, "settings.json");
+    await writeFile(path, JSON.stringify({ extra: true }), "utf8");
+    await saveAgent("custom-my-agent", custom, path);
+    await saveProxy("custom-my-agent", "system", path);
+    expect((await loadSettings(path)).customAgents["custom-my-agent"]).toEqual(custom);
+    expect(proxyMode(await loadSettings(path), "custom-my-agent")).toBe("system");
+
+    await removeAgent("custom-my-agent", path);
+    const settings = await loadSettings(path);
+    expect(settings.customAgents).toEqual({});
+    expect(settings.proxy.agents).toEqual({});
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({ extra: true });
+  });
+
+  /** 验证自定义配置拒绝无效 ID 和缺少占位符的参数模板。 */
+  it("validates custom agent configuration", async () => {
+    const root = await mkdtemp(join(tmpdir(), "tracelet-settings-"));
+    const path = join(root, "settings.json");
+    await expect(saveAgent("claude", custom, path)).rejects.toThrow("Invalid custom agent");
+    await expect(saveAgent("custom-test", { ...custom, inject: { type: "args", args: ["--base-url"] } }, path))
+      .rejects.toThrow("Invalid Base URL argument template");
   });
 });
