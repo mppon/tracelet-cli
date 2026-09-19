@@ -1,111 +1,100 @@
 <!-- 本文件提供 Tracelet 的中文使用说明；修改时应同步更新 README.md。 -->
 
-# Tracelet
+<div align="center">
+  <h1>Tracelet</h1>
+  <p>记录并查看 Claude Code、Codex 与自定义 Agent 的 LLM 对话。</p>
+  <p>
+    <a href="https://www.npmjs.com/package/tracelet-cli"><img alt="npm version" src="https://img.shields.io/npm/v/tracelet-cli?style=flat-square"></a>
+    <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white&style=flat-square">
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square">
+    <img alt="vibe-coding" src="https://img.shields.io/badge/vibe--coding-on-8A2BE2?style=flat-square">
+  </p>
+  <p><a href="./README.md">English</a> · <a href="./README.zh-CN.md">简体中文</a></p>
+</div>
 
-在本地记录并查看 Claude Code、Codex 和自定义 Agent 的 LLM 通信。
+## 项目简介
 
-[English](./README.md)
-
-## 简介
-
-Tracelet 是一个使用 TypeScript 编写的命令行工具。它通过本地 HTTP 代理启动 Agent，记录 Agent 与 LLM 之间的请求和流式响应，不修改请求内容，也不永久修改 Agent 的配置。
-
-内置 Dashboard 可以根据记录还原完整会话，并查看消息、Reasoning、工具调用、完整请求与响应以及 SSE 事件。记录默认保存在 `~/.tracelet/data`。
+- 🔌 采集 Claude Code、Codex 和自定义 Agent 的 LLM 请求与流式响应。
+- 🚀 启动时通过环境变量或临时参数注入本地 Base URL，不修改 Agent 原有配置。
+- 🧩 还原完整响应和会话，包括消息、Reasoning 与工具调用。
+- 🔎 在本地 Dashboard 查看请求、响应和 SSE 事件。
+- 💾 本地保存记录，无需启动 Agent 也能随时回看。
 
 ![Tracelet 会话视图](./docs/images/1.png)
 
 ## 安装
 
-Tracelet 要求 Node.js 22 或更高版本。使用内置 Agent 时，本机还需安装并登录 `claude` 或 `codex`。
-
-全局安装：
+要求 Node.js 22 或更高版本。使用内置 Agent 前，需先安装并登录 Claude Code 或 Codex。
 
 ```bash
 npm install --global tracelet-cli
-tracelet
-```
-
-也可以不全局安装直接运行：
-
-```bash
-npx tracelet-cli
 ```
 
 ## 使用
 
-运行 Tracelet，然后通过菜单选择 Agent：
+### `tracelet`：交互选择 Agent
 
-```bash
-tracelet
+```console
+$ tracelet
+? Select an agent to trace Claude Code
+Tracelet Dashboard: http://127.0.0.1:4318
+Starting Claude Code...
 ```
 
-也可以直接启动指定 Agent。`--` 后面的参数会原样传递给 Agent：
+### `tracelet claude` / `tracelet codex`：直接启动
 
-```bash
-tracelet claude
-tracelet codex
-tracelet codex -- --model gpt-5.6-sol
+```console
+$ tracelet codex
+Tracelet Dashboard: http://127.0.0.1:4318
+Starting Codex...
 ```
 
-要采集其他 Agent，在 `tracelet` 主菜单选择 **Manage custom agents...**，或运行 `tracelet agent`。新增时填写可执行命令、默认参数、协议（Anthropic Messages 或 OpenAI Responses）和原始上游地址。Tracelet 默认通过 `ANTHROPIC_BASE_URL` 或 `OPENAI_BASE_URL` 传入本地 Base URL；也可以改用其他环境变量或命令参数模板。如果选定的环境变量已有值，原始上游地址会优先以该值作为默认值。目标 Agent 必须支持选定的协议和 Base URL 覆盖方式。
+Agent 参数会直接透传，例如 `tracelet codex --model gpt-5.6-sol`。
 
-保存后会显示生成的 ID。之后可以从主菜单启动，也可以直接运行：
+### `tracelet agent`：管理自定义 Agent
 
-```bash
-tracelet run custom-my-agent -- --model example
+```console
+$ tracelet agent
+? Manage custom agents Add agent
+? Agent name My Agent
+...
+Agent saved: custom-my-agent
 ```
 
-同一菜单也支持编辑和删除自定义 Agent。配置保存在 `~/.tracelet/settings.json`；删除配置不会删除已有记录。
+同一菜单也能编辑或删除 Agent。保存后可通过 ID 启动：
 
-启动后，命令行会输出 Dashboard 地址。如果只想查看已有记录而不启动 Agent，可以运行：
+```console
+$ tracelet run custom-my-agent
+Tracelet Dashboard: http://127.0.0.1:4318
+Starting My Agent...
+```
 
-```bash
-tracelet dashboard
+### `tracelet dashboard`：查看已有记录
+
+```console
+$ tracelet dashboard
+Tracelet Dashboard: http://127.0.0.1:4318
 ```
 
 ![完整响应查看器](./docs/images/2.png)
 
 ![请求与 SSE 事件](./docs/images/3.png)
 
-其他命令：
+### `tracelet proxy`：配置上游代理
 
-```bash
-tracelet proxy       # 分别配置每个 Agent 是否使用系统代理
-tracelet agent       # 管理自定义 Agent
-tracelet clear       # 清除全部会话记录
-tracelet clear --yes # 跳过确认并清除记录
+```console
+$ tracelet proxy
+? Select an agent to configure Codex (Off)
+? Use the system proxy for upstream requests? On
+System proxy enabled for Codex.
 ```
 
-使用 `--port` 修改本地服务端口，使用 `--data-dir` 修改记录目录。公共参数需要放在子命令之前：
+### `tracelet clear`：清除历史记录
 
-```bash
-tracelet --port 4318 --data-dir ./trace-data codex
+```console
+$ tracelet clear
+? This will permanently delete all Tracelet records in /Users/you/.tracelet/data. Continue? Yes
+All Tracelet records cleared: /Users/you/.tracelet/data
 ```
 
-认证 Header 会在元数据写入前脱敏，但 Prompt、工具输入和模型输出仍可能包含敏感信息，请勿公开 Tracelet 数据目录。
-
-## 本地开发
-
-项目使用 pnpm workspace，本地开发要求 Node.js 22 或更高版本和 pnpm 11。
-
-```bash
-pnpm install
-pnpm dev
-```
-
-执行检查并生成生产构建：
-
-```bash
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-将本地 `tracelet` 命令链接到全局：
-
-```bash
-pnpm build
-cd apps/cli
-npm link
-tracelet
-```
+⚠️ 记录可能包含提示词、工具输入和模型输出，请妥善保管本地数据目录。

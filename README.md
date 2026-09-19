@@ -1,111 +1,100 @@
 <!-- This file provides the English documentation for Tracelet. When modifying this file, the agent must update README.zh-CN.md at the same time to keep both versions consistent. -->
 
-# Tracelet
-
-Trace and inspect LLM traffic from Claude Code, Codex, and custom agents locally.
-
-[简体中文](./README.zh-CN.md)
+<div align="center">
+  <h1>Tracelet</h1>
+  <p>Capture and explore LLM conversations from Claude Code, Codex, and custom agents.</p>
+  <p>
+    <a href="https://www.npmjs.com/package/tracelet-cli"><img alt="npm version" src="https://img.shields.io/npm/v/tracelet-cli?style=flat-square"></a>
+    <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white&style=flat-square">
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square">
+    <img alt="vibe-coding" src="https://img.shields.io/badge/vibe--coding-on-8A2BE2?style=flat-square">
+  </p>
+  <p><a href="./README.md">English</a> · <a href="./README.zh-CN.md">简体中文</a></p>
+</div>
 
 ## Introduction
 
-Tracelet is a TypeScript CLI that launches agents through a local HTTP proxy and records requests and streaming responses exchanged with the LLM. It does not change request payloads or permanently modify an agent's configuration.
-
-The built-in Dashboard reconstructs conversations from the recorded traffic and lets you inspect messages, reasoning, tool calls, complete requests and responses, and SSE events. Records are stored locally in `~/.tracelet/data` by default.
+- 🔌 Capture LLM requests and streaming responses from Claude Code, Codex, and custom agents.
+- 🚀 Inject the local Base URL through environment variables or temporary launch arguments without changing an agent's saved configuration.
+- 🧩 Reconstruct complete responses and conversations, including messages, reasoning, and tool calls.
+- 🔎 Inspect requests, responses, and SSE events in a local Dashboard.
+- 💾 Keep traces locally and view them again without starting an agent.
 
 ![Tracelet conversation view](./docs/images/1.png)
 
 ## Installation
 
-Tracelet requires Node.js 22 or later. To use a built-in agent, install and authenticate its `claude` or `codex` command.
-
-Install the CLI globally:
+Requires Node.js 22 or later. For built-in agents, install and authenticate Claude Code or Codex first.
 
 ```bash
 npm install --global tracelet-cli
-tracelet
-```
-
-Or run it without a global installation:
-
-```bash
-npx tracelet-cli
 ```
 
 ## Usage
 
-Run Tracelet and select an Agent interactively:
+### `tracelet` — choose an agent
 
-```bash
-tracelet
+```console
+$ tracelet
+? Select an agent to trace Claude Code
+Tracelet Dashboard: http://127.0.0.1:4318
+Starting Claude Code...
 ```
 
-You can also start an Agent directly. Arguments after `--` are passed to the Agent unchanged:
+### `tracelet claude` / `tracelet codex` — start directly
 
-```bash
-tracelet claude
-tracelet codex
-tracelet codex -- --model gpt-5.6-sol
+```console
+$ tracelet codex
+Tracelet Dashboard: http://127.0.0.1:4318
+Starting Codex...
 ```
 
-To trace another agent, choose **Manage custom agents...** from `tracelet`, or run `tracelet agent`. Add its executable, default arguments, protocol (Anthropic Messages or OpenAI Responses), and original upstream URL. Tracelet passes its local Base URL through `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` by default; you can choose another environment variable or an argument template if the agent requires it. The upstream prompt defaults to that variable's current value when available. The agent must support the selected protocol and Base URL override.
+Agent options are passed through directly, for example `tracelet codex --model gpt-5.6-sol`.
 
-The generated ID is shown after saving. Launch it from the main menu or directly:
+### `tracelet agent` — manage custom agents
 
-```bash
-tracelet run custom-my-agent -- --model example
+```console
+$ tracelet agent
+? Manage custom agents Add agent
+? Agent name My Agent
+...
+Agent saved: custom-my-agent
 ```
 
-The same menu supports editing and deleting custom agents. Configurations live in `~/.tracelet/settings.json`; deleting one keeps its recorded history.
+The same menu can edit or delete an agent. Run a saved agent by ID:
 
-The CLI prints the Dashboard URL after startup. To inspect existing records without launching an Agent, run:
+```console
+$ tracelet run custom-my-agent
+Tracelet Dashboard: http://127.0.0.1:4318
+Starting My Agent...
+```
 
-```bash
-tracelet dashboard
+### `tracelet dashboard` — inspect existing traces
+
+```console
+$ tracelet dashboard
+Tracelet Dashboard: http://127.0.0.1:4318
 ```
 
 ![Complete response inspector](./docs/images/2.png)
 
 ![Requests and SSE events](./docs/images/3.png)
 
-Other available commands:
+### `tracelet proxy` — configure upstream proxy use
 
-```bash
-tracelet proxy       # Configure system proxy usage for each Agent
-tracelet agent       # Manage custom agents
-tracelet clear       # Clear all recorded sessions
-tracelet clear --yes # Clear without confirmation
+```console
+$ tracelet proxy
+? Select an agent to configure Codex (Off)
+? Use the system proxy for upstream requests? On
+System proxy enabled for Codex.
 ```
 
-Use `--port` to change the local server port and `--data-dir` to change the record directory. Shared options must appear before the subcommand:
+### `tracelet clear` — delete recorded history
 
-```bash
-tracelet --port 4318 --data-dir ./trace-data codex
+```console
+$ tracelet clear
+? This will permanently delete all Tracelet records in /Users/you/.tracelet/data. Continue? Yes
+All Tracelet records cleared: /Users/you/.tracelet/data
 ```
 
-Authorization headers are redacted before metadata is saved, but prompts, tool inputs, and model outputs can still contain sensitive information. Keep the data directory private.
-
-## Local Development
-
-The repository uses pnpm workspaces. Development requires Node.js 22 or later and pnpm 11.
-
-```bash
-pnpm install
-pnpm dev
-```
-
-Run all checks and create a production build:
-
-```bash
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-Create a local global link for the `tracelet` command:
-
-```bash
-pnpm build
-cd apps/cli
-npm link
-tracelet
-```
+⚠️ Traces can contain prompts, tool inputs, and model outputs. Keep your local data directory private.
