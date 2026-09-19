@@ -1,6 +1,7 @@
 /** 本文件负责定义 Commander 命令和无参数时的交互菜单。 */
 
 import { confirm, select } from "@inquirer/prompts";
+import { readFileSync } from "node:fs";
 import { Command, Option } from "commander";
 import { agents, customAdapter } from "./agents.js";
 import { clearData } from "./clear.js";
@@ -14,6 +15,11 @@ import {
   type ProxyMode,
   type ProxyTarget,
 } from "./settings.js";
+
+// 源码和构建产物都位于 package.json 的下一级目录，始终读取 CLI 包自身的版本。
+const { version } = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { version: string };
 
 /** 将端口字符串转换为合法整数。 */
 function parsePort(value: string): number {
@@ -151,7 +157,7 @@ export function createProgram(): Command {
   program
     .name("tracelet")
     .description("Record LLM requests and streaming responses from built-in and custom agents")
-    .version("0.1.0")
+    .version(version)
     .enablePositionalOptions()
     .addOption(new Option("-p, --port <port>", "Local server port").default(4318).argParser(parsePort))
     .option("--data-dir <path>", "Local trace directory")

@@ -1,7 +1,7 @@
 {
   "name": "tracelet-cli",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Record and inspect LLM traffic from Claude Code, Codex, and custom agents locally.",
   "type": "module",
   "files": [
