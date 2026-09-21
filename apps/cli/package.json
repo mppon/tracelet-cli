@@ -1,7 +1,23 @@
 {
   "name": "tracelet-cli",
   "private": false,
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mppon/tracelet-cli.git"
+  },
+  "homepage": "https://github.com/mppon/tracelet-cli#readme",
+  "bugs": {
+    "url": "https://github.com/mppon/tracelet-cli/issues"
+  },
+  "keywords": [
+    "proxy",
+    "codex",
+    "claude code",
+    "ai agents",
+    "observability",
+    "cli"
+  ],
   "description": "Record and inspect LLM traffic from Claude Code, Codex, and custom agents locally.",
   "type": "module",
   "files": [
