@@ -213,12 +213,12 @@ function claudeMessage(value: unknown, responseId?: string): DraftItem[] {
 function codexItem(value: unknown): DraftItem[] {
   const item = record(value);
   const type = string(item?.type);
-  if (!type) {
+  const role = item?.role === "user" || item?.role === "assistant" ? item.role : undefined;
+  if (!type && !role) {
     return [];
   }
 
-  if (type === "message") {
-    const role = item?.role === "user" || item?.role === "assistant" ? item.role : undefined;
+  if (type === "message" || !type) {
     const text = role ? contentText(item?.content) : undefined;
     const sourceId = string(item?.id);
     return role && text ? [{

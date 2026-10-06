@@ -212,10 +212,8 @@ describe("Conversation builder", () => {
   it("还原 Codex Turn 和工具结果", () => {
     const metadata = { "x-codex-turn-metadata": JSON.stringify({ turn_id: "turn-1", thread_source: "cli" }) };
     const user = {
-      id: "user-1",
-      type: "message",
       role: "user",
-      content: [{ type: "input_text", text: "读取文件" }],
+      content: "读取文件",
     };
     const call = {
       type: "function_call",
