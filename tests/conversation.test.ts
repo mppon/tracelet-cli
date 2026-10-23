@@ -122,6 +122,7 @@ describe("Conversation builder", () => {
     const assistant = {
       role: "assistant",
       content: [
+        { type: "thinking", thinking: "先确认目录。" },
         { type: "text", text: "我来检查。" },
         { type: "tool_use", id: "tool-1", name: "Bash", input: { command: "pwd" } },
       ],
@@ -150,6 +151,9 @@ describe("Conversation builder", () => {
     const tool = turn?.items.find((item) => item.kind === "tool");
 
     expect(result.turns).toHaveLength(1);
+    expect(turn?.items.map((item) => item.kind)).toEqual([
+      "message", "reasoning", "message", "tool", "message",
+    ]);
     expect(turn?.items.filter((item) => item.kind === "message").map((item) => item.text)).toEqual([
       "请查看当前目录",
       "我来检查。",

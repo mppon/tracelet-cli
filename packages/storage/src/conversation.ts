@@ -160,15 +160,7 @@ function claudeMessage(value: unknown, responseId?: string): DraftItem[] {
 
   const content = message?.content;
   const result: DraftItem[] = [];
-  const text = contentText(content);
-  if (text) {
-    result.push({
-      ...(responseId ? { sourceId: responseId } : {}),
-      kind: "message",
-      role,
-      text,
-    });
-  }
+  const tools: DraftItem[] = [];
 
   for (const raw of array(content)) {
     const item = record(raw);
@@ -186,7 +178,7 @@ function claudeMessage(value: unknown, responseId?: string): DraftItem[] {
     }
     if (type === "tool_use") {
       const callId = string(item?.id);
-      result.push({
+      tools.push({
         ...(callId ? { sourceId: callId, callId } : {}),
         kind: "tool",
         role: "assistant",
@@ -197,7 +189,7 @@ function claudeMessage(value: unknown, responseId?: string): DraftItem[] {
     }
     if (type === "tool_result") {
       const callId = string(item?.tool_use_id);
-      result.push({
+      tools.push({
         kind: "tool-result",
         ...(callId ? { callId } : {}),
         output: item?.content,
@@ -205,6 +197,18 @@ function claudeMessage(value: unknown, responseId?: string): DraftItem[] {
       });
     }
   }
+
+  // Claude 的思考过程先于最终回复展示，工具调用继续跟在回复之后。
+  const text = contentText(content);
+  if (text) {
+    result.push({
+      ...(responseId ? { sourceId: responseId } : {}),
+      kind: "message",
+      role,
+      text,
+    });
+  }
+  result.push(...tools);
 
   return result;
 }
